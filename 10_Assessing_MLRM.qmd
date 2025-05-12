@@ -1,0 +1,402 @@
+---
+title: "Assessing MLRM"
+author: "Dr. Balu Pawde"
+format:
+  html:
+    toc: true
+date: today
+editor: visual
+---
+
+------------------------------------------------------------------------
+
+> Note: This writeup introduces to the concept of hypothesis testing, CIs in SLRM[^1].
+
+[^1]: Book: 'Introduction to Econometrics with R' written by Christoph Hanck, Martin Arnold, Alexander Gerber, and Martin Schmelzer, 2024
+
+------------------------------------------------------------------------
+
+```{r, warning=FALSE, message=FALSE}
+# required libraries
+library(AER)
+library(scales)
+library(jtools)
+library(lme4)
+library(huxtable)
+library(officer)
+library(flextable)
+library(stargazer)
+library(mvtnorm)
+```
+
+# Internal Validity & External Validity
+
+- Internal validity: Results are valid for the considered population
+- External validity: Results are generalizable to other populations \& settings
+
+- Threats to internal validity
+  - For the internal validity to hold, two conditions must hold:
+    - One: Betas must be unbiased and consistent
+    - Two: Statistical inference should be valid, meaning standard errors should be valid.
+
+- Threats to external validity
+
+  - For the internal validity following might be the threats
+    - Differences in population of study and poppulation for deployment
+    - Differences in the settings of the populations
+
+## Threats to internal validity of MLRM
+
+- Five sources render estimators biased and inconsistent
+  - Omitted Variable Bias
+  - Misspecification of the functional form
+  - Measurement Errors
+  - Missing data and sample selection
+  - Simultaneous causality bias
+
+### Omitted Variable Bias
+
+- Variance-OVB trade-off lies at the heart
+- Control variables are a must
+- If not possible to control, use panel data, IV and RCTs
+
+### Misspecification of MLRM
+
+- The model you specify and the model underlying the population differ, leads to misspecification
+
+```{r}
+# set seed for reproducibility
+set.seed(3)
+
+# simulate data set
+X <- runif(100, -5, 5)
+Y <- X^2 + rnorm(100)
+
+# estimate the (misspecified) regression function
+ms_mod <- lm(Y ~ X)
+summ(ms_mod)
+```
+
+```{r}
+# plot the data
+plot(X, Y, 
+     main = "Misspecification of Functional Form",
+     pch = 20,
+     col = "steelblue")
+
+# plot the linear regression line
+abline(ms_mod, 
+       col = "red",
+       lwd = 2)
+legend("bottomright",
+       bg = "transparent",
+       cex = 0.8,
+       lwd = 2,
+       col ="red", 
+       legend = "Linear Regression Line")
+```
+
+- Due to misspecification (fitting linear instead of non-linear), the intercept is high and beta is very low.
+
+### Measurement Error
+
+- If the regressor is measured with some error and if that error is correlated with the error term of the model, we have a bias in beta.
+
+```{r}
+# set seed
+set.seed(1)
+
+# load the package 'mvtnorm' and simulate bivariate normal data
+library(mvtnorm)
+dat <- data.frame(
+  rmvnorm(1000, c(50, 100), 
+          sigma = cbind(c(10, 5), c(5, 10))))
+
+# set columns names
+colnames(dat) <- c("X", "Y")
+```
+
+```{r}
+# estimate the model (without measurement error)
+noerror_mod <- lm(Y ~ X, data = dat)
+
+# estimate the model (with measurement error in X)
+dat$X <- dat$X + rnorm(n = 1000, sd = sqrt(10))
+error_mod <- lm(Y ~ X, data = dat)
+
+# print estimated coefficients to console
+noerror_mod$coefficients
+error_mod$coefficients
+```
+
+```{r}
+# plot sample data
+plot(dat$X, dat$Y, 
+     pch = 20, 
+     col = "steelblue",
+     xlab = "X",
+     ylab = "Y")
+
+# add population regression function
+abline(coef = c(75, 0.5), 
+       col = "darkgreen",
+       lwd  = 3)
+
+# add estimated regression functions
+abline(noerror_mod, 
+       col = "purple",
+       lwd  = 3)
+
+abline(error_mod, 
+       col = "darkred",
+       lwd  = 3)
+
+# add legend
+legend("topleft",
+       bg = "transparent",
+       cex = 0.8,
+       lty = 1,
+       col = c("darkgreen", "purple", "darkred"), 
+       legend = c("Population", "No Errors", "Errors"))
+```
+
+- The above shows that without measurement error, the estiamted regression is close to the population
+- However, when we have mismeasured regressor, the estimates of intercept as well of beta are off.
+
+### Missing data and sample selection
+
+- If the sampling procedure influences availability of data, and the sampling procedure depends on DepVar, we have sample selection bias
+- This manifests as follows:
+  - Data are missing at random
+  - Data are missing based on the regressor
+  - Data are missing due to sampling procedure dependent on DepVar
+  
+```{r}
+# set seed
+set.seed(1)
+
+# simulate data
+dat <- data.frame(
+  rmvnorm(1000, c(50, 100), 
+          sigma = cbind(c(10, 5), c(5, 10))))
+
+colnames(dat) <- c("X", "Y")
+
+# mark 500 randomly selected observations
+id <- sample(1:1000, size = 500)
+
+plot(dat$X[-id], 
+     dat$Y[-id], 
+     col = "steelblue", 
+     pch = 20,
+     cex = 0.8,
+     xlab = "X",
+     ylab = "Y")
+
+points(dat$X[id], 
+       dat$Y[id],
+       cex = 0.8,
+       col = "gray", 
+       pch = 20)
+
+# add the population regression function
+abline(coef = c(75, 0.5), 
+       col = "darkgreen",
+       lwd  = 1.5)
+
+# add the estimated regression function for the full sample
+abline(noerror_mod)
+
+# estimate model case 1 and add the regression line
+dat <- dat[-id, ]
+
+c1_mod <- lm(dat$Y ~ dat$X, data = dat)
+abline(c1_mod, col = "purple")
+
+# add a legend
+legend("bottomright",
+       lty = 1,
+       bg = "transparent",
+       cex = 0.8,
+       col = c("darkgreen", "black", "purple"), 
+       legend = c("Population", "Full sample", "500 obs. randomly selected"))
+```
+
+- The graph above shows if you drop observations at random the estimates have marginal effect only
+
+- What happens if sample changes according to regressor?
+
+```{r}
+# set random seed
+set.seed(1)
+
+# simulate data
+dat <- data.frame(
+  rmvnorm(1000, c(50, 100), 
+          sigma = cbind(c(10, 5), c(5, 10))))
+
+colnames(dat) <- c("X", "Y")
+
+# mark observations, systemically related to regressor dropped
+id <- dat$X >= 45
+
+plot(dat$X[-id], 
+     dat$Y[-id], 
+     col = "steelblue",
+     cex = 0.8,
+     pch = 20,
+     xlab = "X",
+     ylab = "Y")
+
+points(dat$X[id], 
+       dat$Y[id], 
+       col = "gray",
+       cex = 0.8,
+       pch = 20)
+
+# add population regression function
+abline(coef = c(75, 0.5), 
+       col = "darkgreen",
+       lwd  = 1.5)
+
+# add estimated regression function for full sample
+abline(noerror_mod)
+
+# estimate model case 1, add regression line
+id <- which(dat$X >= 45)
+dat <- dat[-id, ]
+
+c2_mod <- lm(dat$Y ~ dat$X, data = dat)
+abline(c2_mod, col = "purple")
+
+# add legend
+legend("topleft",
+       lty = 1,
+       bg = "transparent",
+       cex = 0.8,
+       col = c("darkgreen", "black", "purple"), 
+       legend = c("Population", "Full sample",expression(paste("Obs.with ",
+                                                               X <= 45))))
+```
+
+- The above graph shows that if our sample behaves systematically with the values of X, the estimates aer biased
+
+- Now what happens if sample is related to Y values/
+
+```{r}
+# set random seed
+set.seed(1)
+
+# simulate data
+dat <- data.frame(
+  rmvnorm(1000, c(50,100), 
+          sigma = cbind(c(10,5), c(5,10))))
+
+colnames(dat) <- c("X","Y")
+
+# mark observations
+id <- which(dat$X <= 55 & dat$Y >= 100)
+
+plot(dat$X[-id], 
+       dat$Y[-id], 
+       col = "gray",
+       cex = 0.8,
+       pch = 20,
+       xlab = "X",
+       ylab = "Y")
+
+points(dat$X[id], 
+     dat$Y[id], 
+     col = "steelblue",
+     cex = 0.8,
+     pch = 20)
+
+# add population regression function
+abline(coef = c(75, 0.5), 
+       col = "darkgreen",
+       lwd  = 1.5)
+
+# add estimated regression function for full sample
+abline(noerror_mod)
+
+# estimate model case 1, add regression line
+dat <- dat[id, ]
+
+c3_mod <- lm(dat$Y ~ dat$X, data = dat)
+abline(c3_mod, col = "purple")
+
+# add legend
+legend("bottomright",
+       lty = 1,
+       bg = "transparent",
+       cex = 0.8,
+       col = c("darkgreen", "black", "purple"), 
+       legend = c("Population", "Full sample",expression(paste(X <= 55,"&",
+                                                               Y >= 100))))
+```
+
+- This estimation has hugely biased estimates
+
+_ The above exercises show that selection process leads to biased estimation results.
+
+### Simultaneous Causality
+
+- If X affects Y and at the same time Y affects X, we have a situation of simltaneity bias.
+- In the presence of reverse causality, our X is correlated with the error and betas are biased.
+
+```{r}
+# load the data set
+library(AER)
+data("CigarettesSW")
+c1995 <- subset(CigarettesSW, year == "1995")
+
+# estimate the model
+cigcon_mod <- lm(log(packs) ~ log(price), data = c1995)
+cigcon_mod
+```
+
+```{r}
+# plot the estimated regression line and the data
+plot(log(c1995$price), log(c1995$packs),
+     xlab = "ln(Price)",
+     ylab = "ln(Consumption)",
+     main = "Demand for Cigarettes",
+     pch = 20,
+     col = "steelblue")
+
+abline(cigcon_mod, 
+       col = "darkred", 
+       lwd = 1.5)
+# add legend
+legend("topright",lty=1,col= "darkred", "Estimated Regression Line")
+```
+
+- In the above example, we estimated the impact of price on consumption. However, we know that equilibrium price is determined by demand and supply.
+- So, this estimation suffers from simultaneity bias.
+- We need IV approach to get out of this probelm
+
+
+### Sources of inconsistency of OLS Standard errors
+
+- There two threats:
+  - Heteroskedasticity: Use robust standard errors to remedy
+  - Serial correlation (or autocorrelation): Use robust standard errors to remedy this as well
+  
+  
+  
+### Internal & external validity while forecasting
+
+- In forecasts, the causal interpretation is trivial
+- Therefore, may go ahead with the beta estimates without much attention to the threats to internal validity
+- However, for causal interpretation, the threats render the study useless.
+
+
+### External validity
+
+- The results should be generalizable to other populations and settings
+- The simulation study from the book for self study.
+
+--------------------------------------------------------------------------------
+
+
+

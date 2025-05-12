@@ -1,0 +1,362 @@
+---
+title: "The First Class of Econometrics with R"
+author: "Prof. Balu Pawde"
+format:
+  html:
+    toc: true
+  pdf: default
+  docx: default
+knitr:
+  opts_chunk: 
+    collapse: true
+    comment: "#>" 
+    R.options:
+      knitr.graphics.auto_pdf: true
+keep-md: true
+date: today
+editor: visual
+---
+
+# Introduction to Quarto (Documentation using R)
+
+You can run code inside a Quarto document, for which you need to insert a code chunk. There are three ways:
+
+1.  Cmd + Option + I / Ctrl + Alt + I
+2.  “Insert” button icon in the editor
+3.  delimiters ```` ```{r} ```` and ```` ``` ````
+
+```{r}
+1+1
+
+```
+
+```{r}
+# Intro to R Script ---------------------------------------------------------
+# The Symbol # is used for commenting
+
+1 + 2
+# The symbol > in the console is called the prompt where we type code
+
+# R uses functions to perform operations. 
+# To run a function called 'funcname', we type 'funcname(input1, input2)'
+# The inputs are called arguments 
+# Example - create a vector named 'x' of numbers by using function c()
+x <- c(1, 3, 2, 5)
+x
+
+# The symbol = is an alternative to the symbol <-
+x = c(1, 3, 2, 5)
+x
+
+y = c(2, 3, 4, 5)
+y
+
+# If you hit the up arrow, you can find the earlier commands that you used.
+# Typing '?funcname' causes R to open a new help file about the 'funcname'
+# Example: 
+# ?c()
+
+# the function ls() allows us to list the objects that we have in the environment
+ls()
+
+# the function rm() allows us to delete the objects that we have in the environment
+rm(x) 
+#observe that the object x is removed from the environment
+#####################################
+```
+
+## Text Formatting
+
+Quart provides multiple formatting options that are useful in documentation.
+
+The symbol of hash(#) adds headers, from single hash to higher, the font of the text goes on decreasing.
+
+*italic*
+
+**Bold**
+
+[underline]{.underline}
+
+~~strikeout~~
+
+[~~***combine***~~]{.underline}
+
+[SMALL CAPS]{.smallcaps}
+
+`code`
+
+superscript^2^ and
+
+subscript~2~
+
+## Other formatting
+
+### next level heading
+
+#### next level heading - following are callouts
+
+------------------------------------------------------------------------
+
+::: callout-note
+## Explanation
+
+I am creating this note to understand how does the note callout work?
+:::
+
+::: callout-note
+This is a note callout
+:::
+
+::: callout-tip
+## This is a tip callout
+:::
+
+::: callout-warning
+This is a warning callout
+:::
+
+> To add a block quote, use \>immediately followed by text to quote. For example, this is a block quote.
+
+This is a normal text.
+
+#### Lists
+
+-   Bulleted list item 1
+
+-   item 2
+
+    -   item 2a
+
+    -   item 2b
+
+    -   
+
+1.  Numbered list item 1
+
+2.  item 2
+
+Links and images
+
+<https://gipe.ac.in/under-graduate/b-sc-economics/>
+
+<https://quarto.org/>
+
+[GIPE](https://gipe.ac.in/under-graduate/b-sc-economics/)
+
+### Adding image
+
+![Caption here](clipboard-4211412581.png)
+
+------------------------------------------------------------------------
+
+# Adding Diagram
+
+```{mermaid}
+  flowchart LR
+  A[Research Qestion & lit. Review] --> B(Methodology: Modelling & Estimation)
+  B --> C{Results & Analysis}
+  C --> D[Assignment submission]
+  C --> E[Presentation]
+```
+
+------------------------------------------------------------------------
+
+# Exercise
+
+> Exercise: Create your CV in the Quarto: Sections for educational background, internships, experience, personal details.
+
+------------------------------------------------------------------------
+
+# Some Callouts
+
+::: callout-note
+## The output in pdf, html, text format
+
+When you create a new quarto document, you have to select the output format there itself.
+:::
+
+::: callout-note
+## Citation and referencing
+
+[@wickham2019]
+:::
+
+::: callout-important
+## 
+:::
+
+::: callout-tip
+## Footnote
+
+We can add a footnote as like this
+
+Use this format for the same[^1]
+:::
+
+[^1]: A footnote has been added
+
+::: callout-note
+## Run code in the code chunk
+
+Cmd/Ctrl + Shift + Enter
+:::
+
+::: callout-tip
+## Label in code chunk
+
+It is a good practice to include labels in the code chunk to identify the code and to navigate across code chunks.
+:::
+
+::: callout-note
+## Code chunk output options
+
+Chunk output can be customized with **options** - how the output of code should look. See options here: https://yihui.org/knitr/option
+:::
+
+-   `eval: false` prevents code from being evaluated. (And obviously if the code is not run, no results will be generated). This is useful for displaying example code, or for disabling a large block of code without commenting each line.
+
+-   `include: false` runs the code, but doesn’t show the code or results in the final document. Use this for setup code that you don’t want cluttering your report.
+
+-   `echo: false` prevents code, but not the results from appearing in the finished file. Use this when writing reports aimed at people who don’t want to see the underlying R code.
+
+-   `message: false` or `warning: false` prevents messages or warnings from appearing in the finished file.
+
+-   `results: hide` hides printed output; `fig-show: hide` hides plots.
+
+-   `error: true` causes the render to continue even if code returns an error.
+
+------------------------------------------------------------------------
+
+::: callout-important
+## Output from R code below
+
+The following code shows how you can incorporate output from R code in Quarto document.
+:::
+
+```{r}
+#| label: setup
+#| include: true
+
+library(tidyverse)
+
+smaller <- diamonds |> 
+  filter(carat <= 2.5)
+```
+
+We have data about `r nrow(diamonds)` diamonds. Only `r nrow(diamonds) - nrow(smaller)` are larger than 2.5 carats. The distribution of the remainder is shown below:
+
+```{r}
+#| label: plot-smaller-diamonds
+
+smaller |> 
+  ggplot(aes(x = carat)) + 
+  geom_freqpoly(binwidth = 0.01)
+```
+
+------------------------------------------------------------------------
+
+# Figures
+
+Figures can either be embedded or generated through code chunks.
+
+-   insert menu
+
+-   include a code chunk that generates a figure (e.g., includes a `ggplot()` call), the resulting figure will be automatically included in your Quarto document.
+
+-   Following are important options in figures:
+
+    -   Plots tend to be more aesthetically pleasing if they have consistent width. To enforce this, set `fig-width: 6` (6”) and `fig-asp: 0.618` (the golden ratio) in the defaults.
+
+    -   Control the output size with `out-width` generally use `out-width: "70%"` and `fig-align: center`.
+
+    -   To put multiple plots in a single row, set the `layout-ncol` to 2 for two plots, 3 for three plots, etc. 
+
+------------------------------------------------------------------------
+
+# 
+
+# Tables
+
+-   Similar to figures, you can include two types of tables in a Quarto document.
+
+    -   They can be markdown tables that you create directly in your Quarto document (using the Insert Table menu) or
+
+    -   they can be tables generated as a result of a code chunk.
+
+-   For example, `mtcars[1:5, ]` will show data from mtcars dataframe/object
+
+```{r}
+    mtcars[1:5, ]
+```
+
+-   The above table can be made aesthetically better using [`knitr::kable()`](https://rdrr.io/pkg/knitr/man/kable.html) function
+
+```{r}
+knitr::kable(mtcars[1:5, ], )
+```
+
+::: callout-tip
+## Documentation on knitr
+
+Read the documentation for [`?knitr::kable`](https://rdrr.io/pkg/knitr/man/kable.html) to see the other ways in which you can customize the table. 
+:::
+
+------------------------------------------------------------------------
+
+# Equations
+
+You can add equations in two ways; in line and show math:
+
+1.  inline math as follows: $Y_i = \alpha + \beta X_i + \epsilon_i$
+
+2.  display math: $$Y_i = \alpha + \beta X_i + \epsilon_i$$
+
+------------------------------------------------------------------------
+
+# You can also include the videos as follows:
+
+{{< video https://www.youtube.com/watch?v=p1EtzwBZP70&ab_channel=GokhaleInstituteofPoliticsandEconomics >}} {{< video url >}}
+
+|                                 |
+|:--------------------------------|
+| \# You can also add page breaks |
+| page 1                          |
+| {{< pagebreak >}}               |
+| page 2                          |
+
+# Adding Maps - by using lats and longs
+
+```{r}
+library(leaflet)
+leaflet() %>%
+  addTiles() %>%  
+  addMarkers(lng=73.8567, lat=18.5204, popup="The Beautiful City of Pune")
+```
+
+------------------------------------------------------------------------
+
+# Quarto Formats
+
+-   There are two ways to set the output of a document:
+
+    -   Permanently, by modifying the YAML header:
+
+        ![](images/clipboard-37119563.png)
+
+    -   Transiently, by calling `quarto::quarto_render()` by hand:
+
+![](images/clipboard-2964327130.png)
+
+or
+
+Run in terminal: quarto render Quarto_basics.qmd --to pdf
+
+::: callout-tip
+## Quarto output formats
+
+Quarto offers a wide range of output formats. You can find the complete list at <https://quarto.org/docs/output-formats/all-formats.html>
+:::
+
+------------------------------------------------------------------------
+
+## **You can also create books, interactive plots, and website content in quarto**

@@ -1,0 +1,218 @@
+---
+title: "Nonlinear Models"
+author: "Dr. Balu Pawde"
+format:
+  html:
+    toc: true
+date: today
+editor: visual
+---
+
+------------------------------------------------------------------------
+
+> Note: This writeup introduces to the concept of hypothesis testing, CIs in SLRM[^1].
+
+[^1]: Book: 'Introduction to Econometrics with R' written by Christoph Hanck, Martin Arnold, Alexander Gerber, and Martin Schmelzer, 2024
+
+------------------------------------------------------------------------
+
+```{r, warning=FALSE, message=FALSE}
+# required libraries
+library(AER)
+library(scales)
+library(jtools)
+library(lme4)
+library(huxtable)
+library(officer)
+library(flextable)
+library(stargazer)
+```
+
+# Linear Models
+
+- Linear model implies that the effect on $Y$ of a one unit change in $X$ does not depend on the level of $X$. 
+- What if the effect of a change in $X$ on $Y$ depends on the value of $X$, we should use a nonlinear regression function.
+
+# Modelling Nonlinear Regression
+
+- Consider following example
+
+```{r}
+# prepare the data
+library(AER)                                                     
+data(CASchools)
+CASchools$size <- CASchools$students/CASchools$teachers
+CASchools$score <- (CASchools$read + CASchools$math) / 2   
+
+# The correlation income and score variables is 
+cor(CASchools$income, CASchools$score)
+
+# The correlation shows that schools with higher incomes have higher scores
+```
+
+
+- Let's check if a linear model fits the data correctly
+
+```{r}
+# fit a simple linear model
+linear_model<- lm(score ~ income, data = CASchools)
+
+# plot the observations
+plot(CASchools$income, CASchools$score,
+     col = "steelblue",
+     pch = 20,
+     xlab = "District Income (thousands of dollars)", 
+     ylab = "Test Score",
+     cex.main = 0.9,
+     main = "Test Score vs. District Income and a Linear OLS Regression Function")
+
+# add the regression line to the plot
+abline(linear_model, 
+       col = "red", 
+       lwd = 2)
+legend("bottomright", legend="linear fit",lwd=2,col="red")
+
+# The linear regression: overestimates when income is very high or very low and underestimates for the middle income group.
+```
+
+- Since the linear model overestimates/underestimates, let's use nonlinear -quadratic model:
+
+$$TestScore_i = \beta_0 + \beta_1 * income_i + \beta_2 * income^2_i + u_i$$
+  - In the equation above $income^2_i$ is trated as an additional regressor -special case of MLRM
+  - With `lm()` we have to use the `^` operator in conjunction with the function `I()` to add the quadratic term
+
+```{r}
+# fit the quadratic Model
+quadratic_model <- lm(score ~ income + I(income^2), data = CASchools)
+
+# obtain the model summary
+coeftest(quadratic_model, vcov. = vcovHC, type = "HC1")
+#summ(quadratic_model)
+```
+
+- This model allows us to test if the relationship is linear or nonlinear, i.e.
+$$H_0: \beta_2 = 0 vs. H_1: \beta_2 \neq 0$$
+
+- The $t^{calc} = \frac{\hat{\beta_20}-0}{se(\hat{\beta_20})} = −0.0423/0.0048=−8.81$
+  - The null is rejected, establishing that the relationship in nonlinear
+
+- Let's plot the relationship
+
+```{r}
+# draw a scatterplot of the observations for income and test score
+plot(CASchools$income, CASchools$score,
+     col  = "steelblue",
+     pch = 20,
+     xlab = "District Income (thousands of dollars)",
+     ylab = "Test Score",
+     main = "Estimated Linear and Quadratic Regression Functions")
+
+# add a linear function to the plot
+abline(linear_model, col = "green", lwd = 2)
+
+# add quatratic function to the plot
+order_id <- order(CASchools$income)
+order_id
+
+lines(x = CASchools$income[order_id], 
+      y = fitted(quadratic_model)[order_id],
+      col = "red", 
+      lwd = 2) 
+legend("bottomright",legend=c("Linear Line","Quadratic Line"),
+       lwd=2,col=c("green","red"))
+```
+
+- The quadratic model fits the data better
+
+```{r}
+summ(linear_model)
+summ(quadratic_model)
+```
+
+--------------------------------------------------------------------------------
+
+
+# Polynomials
+
+- Generalization of quadratic approach
+$$Y_i = \beta_0 + \beta_1X_i + \beta_2X^2_i + \beta_rX^r_i + u_i$$
+
+- Example
+```{r}
+# estimate a cubic model
+cubic_model <- lm(score ~ poly(income, degree = 3, raw = TRUE), data = CASchools)
+summ(cubic_model)
+```
+
+- In practice, we have to test which degree of the polynomial fits the data well.
+  - This can be tested for the null that none of the polynomials are significant vs at least one is significant, i.e. $H_0: \beta_2=0, \beta_3=0,...,\beta_r=0$ vs $H_1:$ at least one $\beta_j \neq 0, j=2,...,r$
+  - This is a joint hypothesis, can be tested using F-test.
+
+```{r}
+# test the hypothesis of a linear model against quadratic or polynomial alternatives
+
+# set up hypothesis matrix
+R <- rbind(c(0, 0, 1, 0),
+            c(0, 0, 0, 1))
+R
+
+# do the test
+linearHypothesis(cubic_model,
+                 hypothesis.matrix = R,
+                 white.adj = "hc1")
+
+# The results suggest that the null of linear model is rejected.
+```
+
+- Choosing the right degree of polynomial is by trail and error.
+  - Choose the highest degree of the polynomial and use F-test. 
+  - If the null is rejected keep that specification, if not go for lower degree
+  - Usually, the quadratic specification is sufficient
+  
+--------------------------------------------------------------------------------
+  
+### Interpretation of Coeficients in non-linear models
+
+- In quadratic models, the value of Y changes with the value of X.
+- The slope of the function changes with the value of X
+
+```{r}
+# compute and assign the quadratic model
+quadratic_model <- lm(score ~ income + I(income^2), data = CASchools)
+
+# set up data for prediction
+new_data <- data.frame(income = c(10, 11))
+new_data
+
+# do the prediction
+Y_hat <- predict(quadratic_model, newdata = new_data)
+
+
+# compute the difference
+diff(Y_hat)
+```
+
+- Let's now check the difference in Y at other levels of X, i.e. Income
+
+```{r}
+# set up data for prediction
+new_data <- data.frame(income = c(40, 41))
+
+# do the prediction
+Y_hat <- predict(quadratic_model, newdata = new_data)
+
+# compute the difference
+diff(Y_hat)
+```
+
+- Observe the difference in Y, when supplied different income levels.
+- For the above example, it appears that the slope of the regression function is steeper at lower income levels
+
+### Log-transformed models
+
+- The log transformed models have the same interpretation in MLRM as SLRM.
+
+
+
+
+

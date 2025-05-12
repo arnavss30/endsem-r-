@@ -1,0 +1,1099 @@
+---
+title: "2. Introduction to R Programming"
+author: "Prof. Balu Pawde"
+format:
+  html:
+    toc: true
+bibliography: my_bibliography.bib
+
+date: today
+editor: visual
+---
+
+--------------------------------------------------------------------------------
+  
+> Note: This writeup introduces to basics of programming in R. Please refer to @Grolemund2014 for more details[^1].
+
+[^1]: This is the basic text for the discussion contained in this note.
+
+--------------------------------------------------------------------------------
+
+# Basics
+
+## The R userface and talking to computer
+
+- **Overview:**
+  - RStudio (R language) gives allows to talk to your computer
+  - RStudio has different panes: source, console, environment and output
+  - The symbol # is used for commenting
+- **Mechanics**
+  - Object is something which stores data/information; R reads & processes data stored in it
+    - Avoid using numbers and symbols while naming objects
+```{r}
+#Example of creating a virtual die
+  die <- 1:6
+```
+- **R is case sensitive** - objects will be different if capitalized
+- **Playing with the `die`**
+  - Elementwise execution - not matrix manipulation
+```{r}
+#subtracts 1 from each element
+die - 1 
+
+#divides each element by 2
+die / 2 
+
+#vectors are lined up to multiply each element by the other from other vector
+die * die 
+
+#Vector recycling; in case of uneven vectors, shorter will be repeated - warning
+die + 1:4 
+
+#matrix multiplication
+die %*% die
+```
+
+--------------------------------------------------------------------------------
+
+## Functions
+We now want to roll the die that we just created
+
+- **Using functions**
+  - Many functions are already available, we can run by passing arguments
+  - Multiple arguments can be given, separted by comma
+  - R runs the functions from innermost to the outermost
+```{r}
+#To roll die, we can you function 'sample'; you will get different number each time
+sample(die, size = 1)
+```
+
+> Note that by default, R generates the sample without replacement, which has dependence on the earlier outcome. But in the real life, the outcomes of the die are not dependent in this manner. Therefore we need sample with replacement.
+
+```{r}
+#We can roll two dice, with replacement
+dice <- sample(die, size = 2, replace = TRUE)
+dice
+#sum of the values of the dice rolled above
+sum(dice)
+```
+
+--------------------------------------------------------------------------------
+
+## Writing your own function
+
+You can write your own functions in R.
+
+Example: writing function `roll()` to get sum of the values of the dice.
+
+- **Constructing function**
+  - R function has 3 parts: name, body of code and arguments
+  - Since we are writing function, we have to call for function and save it as object.
+  - The object itself becomes the function
+
+```{r}
+roll <- function() {
+  die <- 1:6
+  dice <- sample(die, size = 2, replace = TRUE)
+  sum(dice)
+}
+```
+Once you have written (your own) function, you can now run it
+```{r}
+roll()
+```
+
+--------------------------------------------------------------------------------
+
+## Scripts
+- Easy to edit the code
+- Reproducible
+- Make practice of writing scripts
+
+--------------------------------------------------------------------------------
+
+## Homework
+
+::: callout-note
+
+ **Write one function on your own to get any of the following: mean, maximum, minimum, Median, Mode**
+:::
+--------------------------------------------------------------------------------
+{{< pagebreak >}}
+
+
+
+# Packages and Help
+
+## Packages
+
+- Packages in R are the collections of functions that others have written and made available to use for free. For example, we can use the package `ggplot2`
+- The packages are hosted at <http://cran.r-project.org/>
+- You need to be connected to internet to download packages
+- You can install packaged by running `install.packages("ggplot2")` at the command line
+- Replace `"ggplot2"` in the above command with the name of another package that you want to install
+- In order to use the downloaded package, you have to attach it to the current R session by running `library(ggplot2)`
+- You need to download package only once, but need to load library in each new session
+
+```{r}
+library(ggplot2)
+
+x <- c(-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1)
+y <- x^3
+
+ # Create a scatterplot of x and y
+qplot(x, y)
+
+#Alternatively as follows:
+#dataframe <- data.frame(x <- c(-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1), y <- x^3)
+#ggplot(dataframe, aes(x=x, y=y)) + geom_point()
+```
+
+```{r}
+#If we give only one variable as an argument, we will get histogram
+
+x <- c(1, 2, 2, 2, 3, 3)
+qplot(x, binwidth = 1)
+```
+
+--------------------------------------------------------------------------
+
+## Weighting the dice
+
+- We now want to see if we weight the dice in our favour.
+
+- Before that we need to check if the virtual dice that we created is fair or not. Let's check that as follows:
+
+```{r}
+# If the sum follows bell shape then it should be fair.
+rolls <- replicate(10000, roll())
+qplot(rolls, binwidth = 1)
+```
+
+- The probability of each number for a fair die is 1/6. Let us now change that for the numbers as follows: Probability 1/8 for each number from 1 through 5 and probability 3/8 for the number 6. 
+
+- How to do that? Pull up the help file: `?sample` and read up about probability argument.
+
+```{r}
+roll <- function() {
+  die <- 1:6
+  dice <- sample(die, size = 2, replace = TRUE, 
+    prob = c(1/8, 1/8, 1/8, 1/8, 1/8, 3/8))
+  sum(dice)
+}
+```
+
+- Let us now examine the long-term behaviour of this new dice
+
+```{r}
+# If the sum follows bell shape then it should be fair.
+rolls <- replicate(10000, roll())
+qplot(rolls, binwidth = 1)
+```
+
+- We have successfully weighted the dice - higher numbers occur more.
+
+## More about help
+
+- seek help from mailing list: <https://stat.ethz.ch/mailman/listinfo/r-help>
+
+- And from stackoverflow: <https://stackoverflow.com/>
+
+- And the best is <https://forum.posit.co/>
+
+--------------------------------------------------------------------------
+
+## Summary
+
+- We have understood basics of programming - functions and operations and developed a virtual die that lets you play.
+
+
+--------------------------------------------------------------------------
+
+# Dataframes and Data structures
+
+## R Objects
+
+- Most simple type of object in R is an atomic vector
+  - We created one 
+  
+```{r}
+die <- c(1, 2, 3, 4, 5, 6)
+die
+is.vector(die)
+length(die)
+```
+
+- There are six types of atomic vectors
+  - *doubles, integers, characters, logicals, complex, raw.*
+- [Doubles]{.underline}: Usually the real numbers; this is default type in R for the vectors. `typeof(die)` will tell you type.
+- [Integers]{.underline}: Numbers without decimals. Example: 
+```{r} 
+int <- c(-1L, 2L, 4L)
+int
+typeof(int)
+```
+
+Note: R won’t save a number as an integer unless you include the `L`.
+
+- Characters: stores pieces of text. They can contain numbers also.
+  - Always use quatation mark. 
+  - Example
+
+```{r}
+text <- c("Hello",  "World", "5")
+text
+typeof(text)
+typeof("5")
+```
+
+- Logicals: True or false type. Example:
+
+```{r}
+logic <- c(TRUE, FALSE, TRUE)
+logic
+typeof(logic)
+```
+
+- Complex and Raw: imaginary and raw numbers; not much used.
+
+--------------------------------------------------------------------------------
+
+### Attributes
+
+It is the metadata of an R object. The attributes are names, dimensions and classes:
+
+```{r}
+attributes(die)
+```
+
+- **Names**: name of the each element. For example:
+
+```{r}
+names(die) <- c("one", "two", "three", "four", "five", "six")
+die
+
+#The names can be removed as well
+names(die) <- NULL
+die
+```
+
+- **Dimensions** - arranges vector into `n` dimensional array
+
+```{r}
+dim(die) <- c(3, 2)
+die
+```
+
+--------------------------------------------------------------------------------
+
+### Matrices
+
+- Matrices store values in a two-dimensional array
+
+```{r}
+#Filled by column
+m <- matrix(die, nrow = 2)
+m
+
+#Filled by row
+m <- matrix(die, nrow = 2, byrow = TRUE)
+m
+```
+
+### Arrays
+
+- Creates an n-dimensional array, similar to matrix
+
+```{r}
+ar <- array(c(11:14, 21:24, 31:34), dim = c(2, 2, 3))
+ar
+```
+
+### Class
+
+- **Various types of input classes**
+
+- **Dates and times**
+```{r}
+now <- Sys.time()
+now
+typeof(now)
+class(now)
+```
+
+- **Factors**
+  - Stores categorical information. Example, gender which takes certain values. Some variables only take idiosyncratic order - for example ladies first.
+  - The levels are coded as integers - useful for data analysis
+
+
+```{r}  
+gender <- factor(c("male", "female", "female", "male"))
+typeof(gender)
+attributes(gender)
+gender
+```
+  
+--------------------------------------------------------------------------
+
+## Coercion
+
+- R coerces and changes data types in case of inconsistencies for uniformity
+  - If character string is present in vector, R will convert everything else in character strings.
+  - If a vector only contains logicals and numbers, R will convert the logicals to numbers - every `TRUE` becomes a `1`, and every `FALSE` becomes a `0`
+  - Explicitly ask R to convert data from one type to another
+  
+```{r}
+as.character(1)
+as.logical(1)
+as.numeric(FALSE)
+```
+     
+--------------------------------------------------------------------------------
+
+## Lists
+
+- Lists group together various objects including vectors
+- `list` creates list in the way `c` creates a vector
+
+```{r}
+#observe that there are different objects in this list
+list1 <- list(100:130, "R", list(TRUE, FALSE))
+list1
+```
+
+--------------------------------------------------------------------------------
+
+## Data Frames
+
+- Two dimensional and cleaner version of lists
+- Similar format as an excel sheet
+- Data frames store data as a sequence of columns
+- You can generate a data frame in R
+
+```{r}
+df <- data.frame(face = c("ace", "two", "six"),  
+  suit = c("clubs", "clubs", "clubs"), value = c(1, 2, 6))
+df
+typeof(df)
+class(df)
+str(df)
+```
+
+28/1/25
+
+- We can create a deck of cards using `data.frame`
+
+```{r}
+deck <- data.frame(
+  face = c("king", "queen", "jack", "ten", "nine", "eight", "seven", "six",
+    "five", "four", "three", "two", "ace", "king", "queen", "jack", "ten", 
+    "nine", "eight", "seven", "six", "five", "four", "three", "two", "ace", 
+    "king", "queen", "jack", "ten", "nine", "eight", "seven", "six", "five", 
+    "four", "three", "two", "ace", "king", "queen", "jack", "ten", "nine", 
+    "eight", "seven", "six", "five", "four", "three", "two", "ace"),  
+  suit = c("spades", "spades", "spades", "spades", "spades", "spades", 
+    "spades", "spades", "spades", "spades", "spades", "spades", "spades", 
+    "clubs", "clubs", "clubs", "clubs", "clubs", "clubs", "clubs", "clubs", 
+    "clubs", "clubs", "clubs", "clubs", "clubs", "diamonds", "diamonds", 
+    "diamonds", "diamonds", "diamonds", "diamonds", "diamonds", "diamonds", 
+    "diamonds", "diamonds", "diamonds", "diamonds", "diamonds", "hearts", 
+    "hearts", "hearts", "hearts", "hearts", "hearts", "hearts", "hearts", 
+    "hearts", "hearts", "hearts", "hearts", "hearts"), 
+  value = c(13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 13, 12, 11, 10, 9, 8, 
+    7, 6, 5, 4, 3, 2, 1, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 13, 12, 11, 
+    10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+)
+
+deck
+```
+
+**Entering large data can be cumbersome. Sometimes we have ready datasets that can be loaded to R**
+
+--------------------------------------------------------------------------------
+
+## Loadign Data
+
+- Let us say you have dataset of [Deck](https://gist.github.com/garrettgman/9629323) from <https://gist.github.com/garrettgman/9629323>
+- We can import dataset from the RStudio interface & save as a dataframe: File --> import dataset --> from text
+- The command to do this appears as follows:
+`deck <- read.csv("C:/GIPE_academics/Teaching/BSc_Econometrics_R_Python/Ecotrix_2024_25/2_Data_Analysis/deck.csv")`
+
+--------------------------------------------------------------------------------
+
+## Saving data
+
+- We can save a dataframe
+```{r}
+write.csv(deck, file = "cards.csv", row.names = FALSE)
+```
+
+--------------------------------------------------------------------------------
+
+# R Notation
+
+- Selecting Values
+  - We can extract values from R object, using row and column index
+  - example
+```{r}
+deck[1, 1]
+
+# for extracting multiple values from multiple columns
+deck[1, c(1, 2, 3)]
+
+#And these can be saved as an object
+new <- deck[1, c(1, 2, 3)]
+new
+```
+
+- Using negative integers in extraction
+  - R will return every element except the elements in a negative index
+
+```{r}
+deck[(5:52), 1:3]
+```
+
+- Use a blank space to tell R to extract every value in a dimension
+
+```{r}
+deck[1, ]  
+```
+
+- If you supply a vector of `TRUE`s and `FALSE`s as your index, R will return each row that corresponds to a TRUE
+
+```{r}
+deck[1, c(TRUE, FALSE, TRUE)]
+```
+
+- You can also extract elements using names of the columns/objects
+```{r}
+deck[1, c("face", "suit", "value")]
+
+deck[ , "value"]
+```
+
+--------------------------------------------------------------------------------
+
+## Deal a card
+
+- If we want to deal a card, we can write a function.
+- For Example, if we want to get at the top (first row), we can write function as
+```{r}
+deal <- function(cards) {
+   deck[1, ]
+}
+
+deal(deck)
+```
+
+## Replacing card - shuffling
+
+- We alter the sequence of the rows
+```{r}
+deck3 <- deck[c(2, 1, 3:52), ]
+deck3
+```
+
+- We can select a random card as well
+
+```{r}
+random <- sample(1:52, size = 52)
+
+random
+
+#This will change numbers on every run
+#This now can be used to draw a random card
+
+deck4 <- deck[random, ]
+
+head(deck4)
+#This set is truly shuffled
+```
+
+- You can write a function to shuffle the deck
+
+```{r}
+#First revise the function for deal
+
+deal <- function(cards) {
+   deck3[1, ]
+}
+
+shuffle <- function(cards) { 
+  random <- sample(1:52, size = 52)
+  cards[random, ]
+}
+
+deck3 <- shuffle(deck4)
+deal(deck3)
+```
+
+--------------------------------------------------------------------------------
+
+## Use of the signs $ and [[]]
+
+- the symbol `$` can be used to extract the values from the dataframe and lists
+
+```{r}
+deck$value
+#This can further be used in useful functions
+mean(deck$value)
+```
+
+- The `$` symbol can be used to work with lists also, and we can subset them
+
+```{r}
+lst <- list(numbers = c(1, 2), logical = TRUE, strings = c("a", "b", "c"))
+lst
+
+#And subset it
+lst[1]
+
+#you can use $ in the function to work with list
+sum(lst$numbers)
+```
+
+- In case names are not specified in the list, you can use the symbol `[[]]` to subset
+
+```{r}
+lst[[1]]
+sum(lst[[1]])
+```
+
+--------------------------------------------------------------------------------
+
+# Modifying Values
+
+- We can modify the values of in the lists/dataframes.
+- Changing values in a place
+
+```{r}
+vec <- c(0, 0, 0, 0, 0, 0)
+vec
+#select first value of the vec
+vec[1]
+#and we can modify it as follows:
+vec[1] <- 1000
+vec
+```
+
+```{r}
+#Multiple values can be changed in one go
+vec[c(1, 3, 5)] <- c(1, 1, 1)
+vec
+
+vec[4:6] <- vec[4:6] + 1
+vec
+```
+
+```{r}
+#You can also assign value to add additional element, R will expand the object
+vec[7] <- 9
+vec
+```
+
+- Similar syntax can be used to add new variables to the dataset
+
+```{r}
+#let's create a copy of the deck
+deck2 <- deck
+deck2$new <- 1:52
+deck2
+```
+
+- The variables can also be deleted using `NULL` symbol
+
+```{r}
+deck2$new <- NULL
+deck2
+```
+
+- In some games, aces are powerful than the king. We can changes the value of `ace` to accommodate this feature
+
+```{r}
+#We know that in the deck2, the ace comes at every next 13th place
+deck2[c(13, 26, 39, 52), ]
+
+#We want to alter the values of the aces
+deck2[c(13, 26, 39, 52), 3]
+#or
+deck2$value[c(13, 26, 39, 52)]
+
+#To assign new values, we can simply use
+deck2$value[c(13, 26, 39, 52)] <- c(14, 14, 14, 14)
+#or
+deck2$value[c(13, 26, 39, 52)] <- 14
+head(deck2, 13)
+#See that the values for the ace have changed in the deck
+```
+
+- Assigning values can be tedious if the vector is not ordered and we don't know the exact places of elements
+  - We can use logical subsetting & logical tests in such cases
+  - R allows 7 logical operators: `a > b`, `a >= b`, `a < b`, `a <= b`, `a == b`, `a != b`, and `a %in% c(a, b, c)`
+  - Each of the operators return `TRUE` or a `FALSE`
+
+```{r}
+1 > 2
+1 > c(0, 1, 2)
+c(1, 2, 3) == c(3, 2, 1)
+
+#The symbol %in% tests whether the value(s) on the left side are in the vector on the right side.
+1 %in% c(3, 4, 5)
+c(1, 2, 3) %in% c(3, 4, 5)
+c(1, 2, 3, 4) %in% c(3, 4, 5)
+```
+
+5feb2025
+
+
+- The ace is saved as an element in the column `face` in `deck2`. We can idntify that
+
+```{r}
+deck2$face == "ace"
+#We can also see how many ace's are stored in face
+sum(deck2$face == "ace")
+```
+
+- We can use logical tests for any randomly distributed list/vector
+
+```{r}
+#We can build a logical test to identify aces and then use the test to single out ace point values
+deck3$face == "ace"
+deck3$value[deck3$face == "ace"]
+#And now we can assign the new values
+deck3$value[deck3$face == "ace"] <- 14
+head(deck3, 15)
+#We do not need to know where the values are that need to be changed
+```
+---------------------------------------------------------------------------------------------------------------------------------
+
+**Homework: Assign a value of 1 to every card in deck4 that has a suit of hearts.**
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+###  Boolean operators
+
+- Boolean operators are things like and (&) and or (|). There are six such: `&`, `|`, `xor`, `!`, `any` and `all`
+- They collapse the results of multiple logical tests into a single `TRUE` or `FALSE`.
+- We can use a boolean to locate queen of spades i the deck
+
+```{r}
+deck4$face == "queen" & deck4$suit == "spades"
+queenOfSpades <- deck4$face == "queen" & deck4$suit == "spades"
+queenOfSpades
+
+#We can now assign values
+deck4[queenOfSpades, ]
+deck4$value[queenOfSpades]
+deck4$value[queenOfSpades] <- 13
+deck4[queenOfSpades, ]
+```
+
+## Missing information
+
+- The `NA` character is a special symbol in R, it represents missing information
+- The missing information becomes problem as it does not allow operations
+
+```{r}
+mean(c(NA, 1:50))
+```
+- We can use the function `na.rm` to remove the NA information and evaluate
+
+```{r}
+mean(c(NA, 1:50), na.rm = TRUE)
+```
+
+- There is a way to identify if the vector has a missing value
+
+```{r}
+vec <- c(1, 2, 3, NA)
+is.na(vec)
+```
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+# Environments
+
+- R has hierarchy of environments and each object belongs to environment - environment to a larger environment - similar to file explorer
+- We can see all the environments the R is using
+
+```{r}
+library(pryr)
+parenvs(all = TRUE)
+#The bottom is the parent environments and as we move up, we find a sub-environment
+```
+
+--------------------------------------------------------------------------------
+
+# Faster Programs, loops and repetitions
+
+## Programs
+
+### Creating a slot machine
+
+- randomly generate three symbols, the prize given to certain combinations
+- In R, the programs are saved as R scripts or functions
+
+```{r}
+get_symbols <- function() {
+  wheel <- c("DD", "7", "BBB", "BB", "B", "C", "0")
+  sample(wheel, size = 3, replace = TRUE, 
+    prob = c(0.03, 0.03, 0.06, 0.1, 0.25, 0.01, 0.52))
+}
+get_symbols()
+```
+
+11/02/2025
+
+- In order to be able to create a slot machine, we need to sequence our steps as follows:
+
+```{r}
+play <- function() {
+
+  # step 1: generate symbols
+  symbols <- get_symbols()
+
+  # step 2: display the symbols
+  print(symbols)
+
+  # step 3: score the symbols
+  score(symbols)
+}
+```
+
+## If statements
+
+- When faced with multiple cases, program needs `if` statements
+
+```{r}
+num <- -2
+print("num is negative.")
+print("need to fix it.")
+if (num < 0) {
+num <- num * -1
+print("Now num is positive.")
+}
+
+num
+
+#Above converts to positive
+
+num <- 4
+
+if (num < 0) {
+  num <- num * -1
+}
+
+num
+#Since the logical above is 'FALSE', R does not operate
+```
+
+
+- Examine the following; think about reasoning
+
+```{r}
+x <- 1
+if (x == 1) {
+  x <- 2
+  if (x == 1) {
+    x <- 3
+  }
+}
+x
+```
+
+## else statements
+
+- `if` tells R what to do when the condition is `TRUE`; `else` tells R what to do when `FALSE`
+
+```{r}
+a <- 3.14
+dec <- a - trunc(a)
+dec
+
+
+if (dec >= 0.5) {
+  a <- trunc(a) + 1
+} else {
+  a <- trunc(a)
+}
+
+a
+
+#The 'IF' evaluating to 'FALSE' R runs 'ELSE'
+```
+
+- In case of more than two mutually exclusive cases, string multiple if and else statements. 
+
+```{r}
+a <- 1
+b <- 1
+
+if (a > b) {
+  print("A wins!")
+} else if (a < b) {
+  print("B wins!")
+} else {
+  print("Tie.")
+}
+```
+
+## logical tests
+
+- In a slot machine, the prize is rewarded if three symbols are of the same type
+
+```{r}
+symbols <- c("7", "7", "7")
+
+#one way to test
+symbols[1] == symbols[2] & symbols[2] == symbols[3]
+
+#Another way to test
+symbols[1] == symbols[2] & symbols[1] == symbols[3]
+
+#Third way to test
+all(symbols == symbols[1])
+```
+
+```{r}
+same <- symbols[1] == symbols[2] && symbols[2] == symbols[3]
+```
+
+- The prize is also given if all symbols are a type of a bar
+
+```{r}
+symbols <- c("B", "BBB", "BB")
+
+symbols[1] == "B" | symbols[1] == "BB" | symbols[1] == "BBB" &
+symbols[2] == "B" | symbols[2] == "BB" | symbols[2] == "BBB" &
+symbols[3] == "B" | symbols[3] == "BB" | symbols[3] == "BBB"
+
+
+#The above can be written with brevity
+#%in% does the job of the | operator
+all(symbols %in% c("B", "BB", "BBB"))
+```
+
+```{r}
+bars <- symbols %in% c("B", "BB", "BBB")
+```
+
+
+```{r}
+same
+bars
+```
+
+- In a slot machine the symbols will have the prizes; let them be as follows:
+
+```{r}
+if (same) {
+  symbol <- symbols[1]
+  if (symbol == "DD") {
+    prize <- 800
+  } else if (symbol == "7") {
+    prize <- 80
+  } else if (symbol == "BBB") {
+    prize <- 40
+  } else if (symbol == "BB") {
+    prize <- 5
+  } else if (symbol == "B") {
+    prize <- 10
+  } else if (symbol == "C") {
+    prize <- 10
+  } else if (symbol == "0") {
+    prize <- 0
+  }
+}
+```
+
+## Lookup tables
+
+- The assignment of symbols and prizes can be done alternatively
+
+```{r}
+payouts <- c("DD" = 100, "7" = 80, "BBB" = 40, "BB" = 25, 
+  "B" = 10, "C" = 10, "0" = 0)
+payouts
+```
+
+- Now we can assign the prizes to the outcomes
+
+```{r}
+if (same) {
+  payouts <- c("DD" = 100, "7" = 80, "BBB" = 40, "BB" = 25, 
+    "B" = 10, "C" = 10, "0" = 0)
+  prize <- unname(payouts[symbols[1]])
+} else if (all(bars)) {
+  prize <- 5
+}
+prize
+```
+
+- With multiple prizes for multiple symbols the script is 
+
+```{r}
+score <- function(symbols) {
+  
+  diamonds <- sum(symbols == "DD")
+  cherries <- sum(symbols == "C")
+  
+  # identify case
+  # since diamonds are wild, only nondiamonds 
+  # matter for three of a kind and all bars
+  slots <- symbols[symbols != "DD"]
+  same <- length(unique(slots)) == 1
+  bars <- slots %in% c("B", "BB", "BBB")
+
+  # assign prize
+  if (diamonds == 3) {
+    prize <- 100
+  } else if (same) {
+    payouts <- c("7" = 80, "BBB" = 40, "BB" = 25,
+      "B" = 10, "C" = 10, "0" = 0)
+    prize <- unname(payouts[slots[1]])
+  } else if (all(bars)) {
+    prize <- 5
+  } else if (cherries > 0) {
+    # diamonds count as cherries
+    # so long as there is one real cherry
+    prize <- c(0, 2, 5)[cherries + diamonds + 1]
+  } else {
+    prize <- 0
+  }
+  
+  # double for each diamond
+  prize * 2^diamonds
+}
+```
+
+- We can now write a `play` function
+
+```{r}
+play <- function() {
+  symbols <- get_symbols()
+  print(symbols)
+  score(symbols)
+}
+
+#Play with the slot machine
+play()
+```
+
+12/02/2025
+# Loops
+
+- to repeat a task
+- For Example, we can get an expected value of the prize of the slot machine
+
+```{r}
+wheel <- c("DD", "7", "BBB", "BB", "B", "C", "0")
+combos <- expand.grid(wheel, wheel, wheel, stringsAsFactors = FALSE)
+#expand.grid provides all possible combinations
+combos
+
+
+#We can now assign probabilities for the outcomes
+prob <- c("DD" = 0.03, "7" = 0.03, "BBB" = 0.06, 
+  "BB" = 0.1, "B" = 0.25, "C" = 0.01, "0" = 0.52)
+
+combos$prob1 <- prob[combos$Var1]
+combos$prob2 <- prob[combos$Var2]
+combos$prob3 <- prob[combos$Var3]
+
+head(combos)
+```
+
+
+```{r}
+#The probability for each combination can be given by
+combos$prob <- combos$prob1 * combos$prob2 * combos$prob3
+
+sum(combos$prob)
+```
+
+- Now we need to determine the prize for each combination, for example
+
+```{r}
+symbols <- c(combos[1, 1], combos[1, 2], combos[1, 3])
+score(symbols)
+```
+
+- But this needs to be done for each such combination?
+
+## `for` loops
+
+- repeats a chunk of code many times, once for each element in a set of input
+- `for` loops provide a way to tell R, “Do this for every value of that.”
+
+```{r}
+for (i in c("My", "first", "for", "loop")) {
+  print(i)
+}
+```
+
+- It is possible to save the vector values using for loop
+
+```{r}
+#creating empty vector
+chars <- vector(length = 4)
+
+words <- c("My", "fourth", "for", "loop")
+
+for (i in 1:4) {
+  chars[i] <- words[i]
+}
+chars
+```
+
+- Let us create a prize variable in our dataframe `combos` and assign it the values
+
+```{r}
+combos$prize <- NA
+head(combos, )
+```
+
+
+```{r}
+for (i in 1:nrow(combos)) {
+  symbols <- c(combos[i, 1], combos[i, 2], combos[i, 3])
+  #combination of the three wheels
+  combos$prize[i] <- score(symbols)
+}
+head(combos, )
+```
+
+- The expected value of the prize then is
+
+```{r}
+sum(combos$prize * combos$prob)
+```
+
+
+
+## `while` loops
+
+- How long would a player play if s/he plays until broke
+
+```{r}
+plays_till_broke <- function(start_with) {
+  cash <- start_with
+  n <- 0
+  while (cash > 0) {
+    cash <- cash - 1 + play()
+    n <- n + 1
+  }
+  n
+}
+
+plays_till_broke(100)
+```
+
+--------------------------------------------------------------------------------
+
+### References
+
+::: {#refs}
+
+:::
+
+[Hands-On Programming with R by Garrett Grolemund](https://rstudio-education.github.io/hopr/index.html)

@@ -1,0 +1,462 @@
+---
+title: "Hypothesis Tests and Confidence Intervals in SLRM"
+author: "Dr. Balu Pawde"
+format:
+  html:
+    toc: true
+date: today
+editor: visual
+---
+
+------------------------------------------------------------------------
+
+> Note: This writeup introduces to the concept of hypothesis testing, CIs in SLRM[^1].
+
+[^1]: Book: 'Introduction to Econometrics with R' written by Christoph Hanck, Martin Arnold, Alexander Gerber, and Martin Schmelzer, 2024
+
+------------------------------------------------------------------------
+
+# Introduction
+
+```{r, warning=FALSE, message=FALSE}
+# required libraries
+library(AER)
+library(scales)
+```
+
+-   We intend to understand
+    -   Testing Hypotheses regarding regression coefficients.
+    -   Confidence intervals for regression coefficients.
+    -   Regression when regressor is a dummy variable.
+    -   Heteroskedasticity and Homoskedasticity.
+
+## Testing two sided hypothesis concerning the $\hat{\beta_1}$
+
+-   Since we know that the $\hat{\beta_1}$ is approximately normally distributed in large samples, we use t-statistic for testing: $$t = \frac{estimatedValue - hypothesizedValue}{standardErrorOfTheEstimator}$$ $$t = \frac{\hat{\beta_1} - \beta_{1,0}}{SE({\hat{\beta_1})}}$$
+
+-   For a two sided alternative $(H_1: \beta_1 \neq \beta_{1,0})$, we reject the null (i.e. $(H_0: \beta_1 = \beta_{1,0})$); we reject the null at the 5% level if $|t^{calc}| > 1.96$ or equivalently if p-value is less than $0.05$; where $$p-value = 2*\Phi(-|t^{calc}|)$$
+
+-   Let us consider the following regression:
+
+```{r, warning=FALSE, message=FALSE}
+# load the `CASchools` dataset
+library(AER)
+library(MASS)
+data(CASchools)
+
+# add student-teacher ratio
+CASchools$STR <- CASchools$students/CASchools$teachers
+
+# add average test-score
+CASchools$score <- (CASchools$read + CASchools$math)/2
+
+# estimate the model
+linear_model <- lm(score ~ STR, data = CASchools)   
+
+#print the summary of the coefficient
+summary(linear_model)$coefficients
+
+# t-values refer to betas=0
+# p-values refer to two-sided alternative
+
+Beta1 <- linear_model$coefficients
+
+```
+
+-   The test is as follows: $H_0: \beta_1 = 0$ vs $H_1: \beta_1 \neq 0$
+
+$$t^{calc} = \frac{\hat{\beta_1} - \beta_{1,0}}{SE({\hat{\beta_1})}}$$ $$t^{calc} = \frac{-2.279808 - 0}{0.4798255} = −4.75$$ 
+
+- Our rule says that if $t^{calc} > 1.96$, we reject the null hypothesis at the 5% level of significance. 
+- Similarly, we reject the null if $p-value < 0.05$ - We conclude that the coefficient is significantly different from zero. 
+- Interpretation: We reject the hypothesis that the class size has 'no influence' on the student test scores at the 5% level. 
+- Usually, the p-values are calculated using approximation to t-distribution which follows t-distribution with $n-k-1$ df:
+
+```{r}
+# determine degrees of freedom
+linear_model$df.residual
+```
+
+-   So, $\hat{\beta_1} \sim t_{418}$
+-   So, the p-value for a two-sided significance test can be obtained
+
+```{r}
+2 * pt(-4.751327, df = 418)
+pval_score <- 2 * pt(-4.751327, df = 418)
+format(pval_score, scientific=F)
+# p=probability; t=t distribution
+
+# Since the sample is large, one could also use standard normal density to compute p-value
+
+2 * pnorm(-4.751327)
+# The above is based on the normal distribution
+```
+
+-   If the null hypothesis is true, observing $\hat{\beta_1} \ge |-2.28|$ (which is beta_1 for str) is very unlikely
+
+```{r}
+
+# Plot the standard normal on the support [-6,6]
+t <- seq(-6, 6, 0.01)
+
+plot(x = t, 
+     y = dnorm(t, 0, 1), 
+     type = "l", 
+     col = "steelblue", 
+     lwd = 2, 
+     yaxs = "i", 
+     axes = F, 
+     ylab = "", 
+     main = expression("Calculating the p-value of a Two-sided Test when"
+             ~ t^calc ~ "=-4.75"), 
+     cex.lab = 0.7,
+     cex.main = 1)
+
+tcalc <- -4.75
+
+axis(1, at = c(0, -1.96, 1.96, -tcalc, tcalc), cex.axis = 0.7)
+
+# Shade the critical regions using polygon():
+
+# critical region in left tail
+polygon(x = c(-6, seq(-6, -1.96, 0.01), -1.96),
+        y = c(0, dnorm(seq(-6, -1.96, 0.01)), 0), 
+        col = 'orange')
+
+# critical region in right tail
+
+polygon(x = c(1.96, seq(1.96, 6, 0.01), 6),
+        y = c(0, dnorm(seq(1.96, 6, 0.01)), 0), 
+        col = 'orange')
+
+# Add arrows and texts indicating critical regions and the p-value
+arrows(-3.5, 0.2, -2.5, 0.02, length = 0.1)
+arrows(3.5, 0.2, 2.5, 0.02, length = 0.1)
+
+arrows(-5, 0.16, -4.75, 0, length = 0.1)
+arrows(5, 0.16, 4.75, 0, length = 0.1)
+
+text(-3.5, 0.22, 
+     labels = expression("0.025"~"="~over(alpha, 2)),
+     cex = 0.7)
+text(3.5, 0.22, 
+     labels = expression("0.025"~"="~over(alpha, 2)),
+     cex = 0.7)
+
+text(-5, 0.18, 
+     labels = expression(paste("-|",t[calc],"|")), 
+     cex = 0.7)
+text(5, 0.18, 
+     labels = expression(paste("|",t[calc],"|")), 
+     cex = 0.7)
+
+# Add ticks indicating critical values at the 0.05-level, t^act and -t^act 
+rug(c(-1.96, 1.96), ticksize  = 0.145, lwd = 2, col = "darkred")
+rug(c(-tcalc, tcalc), ticksize  = -0.0451, lwd = 2, col = "darkgreen")
+```
+
+-   The $p-Value$ is the area under the curve to left of $−4.75$ plus the area under the curve to the right of $4.75$. As we already know from the calculations above, this value is very small.
+
+## Confidence Intervals for Regression Coefficients
+
+- Due to sampling uncertainty we may never exactly estimate the true parameter
+- However, we may construct confidence intervals
+  - For a 95% confidence interval, 95% of the drawn samples (of certain size) will contain the true sample: $CI^{\beta_i}_{0.95}=[\hat{\beta_i}-1.96*SE(\hat{\beta_i}), \hat{\beta_i}+1.96*SE(\hat{\beta_i})]$
+- Calculate the confidence interval for `\beta_1` manually
+
+```{r}
+cbind(CIlower = linear_model$coefficients - 1.96 * summary(linear_model)$coefficients[, 2], 
+      CIupper = linear_model$coefficients + 1.96 * summary(linear_model)$coefficients[, 2])
+```
+
+- Alternatively, we can use the `confint` function
+
+```{r}
+confint(linear_model)
+```
+
+------------------------------------------------------------------------
+
+## Revisiting non-linearities
+- Already discussed that non-linearities can be introduced using `log`
+
+```{r, message=FALSE, warning=FALSE}
+# Estimating log-level model: regressing wage on education
+
+library(jtools)
+library(lme4)
+library(huxtable)
+library(officer)
+library(flextable)
+
+
+data(wage1, package = 'wooldridge')
+
+wage_sum <- summ(lm(log(wage) ~ educ, data = wage1), confint = TRUE, digits = 3 )
+wage_sum
+
+# Interpretation: 
+#Since the p-value < 0.05, the null hypothesis that the effect is zero is rejected. 
+#The effect of one additional year of education on wages is 8.3%.
+```
+
+```{r}
+# We can store these results in a file, which can further be used to insert in reports
+
+export_summs(wage_sum, to.file = "html", file.name = "Wage_Educ_Reg.html", 
+             digits = 3)
+
+export_summs(wage_sum, to.file = "xlsx", file.name = "Wage_Educ_Reg.xlsx", 
+                          digits = 3)
+```
+
+
+```{r}
+# Estimating log-log model
+
+data(ceosal1, package = 'wooldridge')
+lm(log(salary) ~ (log(sales)), data = ceosal1)
+ 
+sal_sum <- summ(lm(log(salary) ~ (log(sales)), data = ceosal1), digits = 3 )
+sal_sum
+```
+
+Note: For more on representing results of regression visit <https://cran.r-project.org/web/packages/jtools/vignettes/summ.html>
+
+--------------------------------------------------------------------------------
+
+## Regression through origin and on a constant
+
+- In rare cases, we wish to impose the restriction that, when $x = 0$, the expected value of $y$ is zero
+  - For example, if income (x) is zero, then income tax revenues (y) must also be zero.
+- Sometimes, depvar regressed only on a constant
+
+```{r}
+# Let us estiamte these models
+
+data(ceosal1, package = 'wooldridge')
+
+# Below is regular simple regression
+(reg1 <- lm(salary ~ roe, data = ceosal1))
+
+# Below is regression through origin, i.e. without intercept
+(reg2 <- lm(salary ~ 0+roe, data = ceosal1))
+
+# Below is regression without slope, i.e. on a constant
+(reg3 <- lm(salary ~ 1, data = ceosal1))
+
+# average of Y: 
+mean(ceosal1$salary)
+#The mean and the coefficient from the regression on constant are same.
+
+
+#scatterplot with all 3 regressions
+plot(ceosal1$roe, ceosal1$salary, ylim = c(0, 4000))
+abline(reg1, lwd = 2, lty = 1)
+abline(reg2, lwd = 2, lty = 2)
+abline(reg3, lwd = 2, lty = 3)
+legend("topleft", c("full", "through origin", "constant only"), lwd = 2, lty = 1:3 )
+```
+
+--------------------------------------------------------------------------------
+
+## Regression on a Binary Independent Variable
+
+- Simple regression can also be applied when the IndepVar is binary, i.e. dummy variable
+  - The IndepVar$x$ takes only two values: 0 & 1
+- Considering the regression equation: $y = \beta_0 + \beta_1 x + u$, where $x$ is binary, $$E[y|x] = \beta_0 + \beta_1 x + E[u|x] = \beta_0 + \beta_1 x $$
+  - If we plug the values $x = 0$ and $x = 1$, we see that 
+  $$E[y|x = 0] = \beta_0$$ and
+  $$E[y|x = 1] = \beta_0 + \beta_1$$
+  and it follows that
+  $$\beta_1 = E[y|x = 1] - E[y|x = 0]$$
+
+- In other words, $\beta_1$ is the difference in the average value of $y$ over the sub-populations with $x = 1$ and
+$x = 0$.
+
+  - This difference can be descriptive or, $\beta_1$ can be a causal effect of an intervention or a program.
+
+- Example: Impact of student-teacher ratio on test scores
+  - let us define a dummy variable where 
+  $D_i = 1$ if $STR < 20$ and 
+$D_i = 0$ if $STR >= 20$
+which makes the regression model as $$TestScore_i = \beta_0 + \beta_1 D_i + u_i$$
+
+- It is a good idea to examine the data before going ahead
+
+```{r}
+# Create the dummy variable as defined above
+CASchools$D <- CASchools$STR < 20
+
+# Compute the average score when D=1 (low  STR)
+mean.score.for.D.1 <- mean(CASchools$score[CASchools$D == TRUE])
+
+# Compute the average score when D=0 (high STR)
+mean.score.for.D.0 <- mean(CASchools$score[CASchools$D == FALSE])
+
+
+
+plot( CASchools$score ~ CASchools$D,        # provide the data to be plotted
+      pch = 19,                             # use filled circles as plot symbols
+      cex = 0.5,                            # set size of plot symbols to 0.5
+      col = "Steelblue",                    # set the symbols' color to "Steelblue"
+      xlab = expression(D[i]),              # Set title and axis names
+      ylab = "Test Score",
+      main = "Dummy Regression")
+
+# Add the average for each group
+points( y = mean.score.for.D.0, x = 0,   col="red", pch = 19)
+points( y = mean.score.for.D.1, x = 1,   col="red", pch = 19)
+```
+
+- With a dummy regressor, it is not useful to think of $\beta_1$ as a slope parameter since the dummy $x_i ∈ \{0,1\}$
+ , i.e., we only observe two discrete values instead of a continuum of regressor values
+
+- Let us now estimate a dummy regression model
+
+```{r}
+# estimate the dummy regression model
+dummy_model <- lm(score ~ D, data = CASchools)
+summ(dummy_model)
+
+#The results show that
+# the expected test score in the districts with STR < 20 (i.e. x=1) is predicted to be 650.08 + 7.17 = 657.17
+# and the districts with STR >= 20 are expected to have an average score of 650.08.
+```
+
+```{r}
+#We can get the confidence interval as follows
+
+confint(dummy_model)
+```
+
+- Based on the t-value and the p-value we reject the null that difference in group means at 5% level of significance. This is also enforced by the fact that $\beta_1 = 0$ is outside of the confidence interval.
+
+
+--------------------------------------------------------------------------------
+
+## Heteroskedasticity and Homoskedasticity
+
+- Variance required to obtain distribution of Betas
+- Assumption of homoskedasticity (constant variance): The variance of the unobservable, $u$, conditional on $x$, is constant.
+- Homoskedasticity is an empirical issue
+
+```{r}
+# load scales package for adjusting color opacities
+library(scales)
+# generate some heteroskedastic data:
+# set seed for reproducibility
+set.seed(123) 
+# set up vector of x coordinates
+x <- rep(c(10, 15, 20, 25), each = 25)
+# initialize vector of errors
+e <- c()
+# sample 100 errors such that the variance increases with x
+e[1:25] <- rnorm(25, sd = 10)
+e[26:50] <- rnorm(25, sd = 15)
+e[51:75] <- rnorm(25, sd = 20)
+e[76:100] <- rnorm(25, sd = 25)
+# set up y
+y <- 720 - 3.3 * x + e
+# Estimate the model 
+mod <- lm(y ~ x)
+# Plot the data
+plot(x = x, 
+     y = y, 
+     main = "An Example of Heteroskedasticity",
+     xlab = "Student-Teacher Ratio",
+     ylab = "Test Score",
+     cex = 0.5, 
+     pch = 19, 
+     xlim = c(8, 27), 
+     ylim = c(600, 710))
+
+# Add the regression line to the plot
+abline(mod, col = "darkred")
+# Add boxplots to the plot
+boxplot(formula = y ~ x, 
+        add = TRUE, 
+        at = c(10, 15, 20, 25), 
+        col = alpha("gray", 0.4), 
+        border = "black")
+```
+
+- A real world example
+```{r}
+# load package and attach data
+library(AER)
+data("CPSSWEducation")
+attach(CPSSWEducation)
+
+# get an overview
+summary(CPSSWEducation)
+
+# estimate a simple regression model
+labor_model <- lm(earnings ~ education)
+summary(labor_model)
+
+# plot observations and add the regression line
+plot(education, 
+     earnings,
+     xlab="Earnings",
+     ylab="Education",
+     ylim = c(0, 150))
+
+abline(labor_model, 
+       col = "steelblue", 
+       lwd = 2)
+```
+
+- Heteroskedasticity has implications for hypothesis testing
+  - the t-statistics do not follow normal distribution even in large samples
+  - Leading to invalid inference
+
+- The remedy is heteroskedasticity robus standard errors
+```{r}
+vcov <- vcovHC(labor_model, type = "HC1")
+vcov
+
+# compute the square root of the diagonal elements in vcov
+robust_se <- sqrt(diag(vcov))
+robust_se
+
+# we invoke the function `coeftest()` on our model
+coeftest(labor_model, vcov. = vcov)
+```
+
+- Example
+
+```{r}
+set.seed(905)
+
+# generate heteroskedastic data 
+X <- 1:500
+Y <- rnorm(n = 500, mean = X, sd = 0.6 * X)
+
+# estimate a simple regression model
+reg <- lm(Y ~ X)
+
+# plot the data
+plot(x = X, y = Y, 
+     pch = 19, 
+     col = "steelblue", 
+     cex = 0.8)
+
+# add the regression line to the plot
+abline(reg, 
+       col = "red", 
+       lwd = 1.5)
+legend("topleft","Regression line",col="red",lwd=1.5)
+
+# test hypthesis using the default standard error formula
+linearHypothesis(reg, hypothesis.matrix = "X = 1")$'Pr(>F)'[2] < 0.05
+
+
+# test hypothesis using the robust standard error formula
+linearHypothesis(reg, hypothesis.matrix = "X = 1",
+                      white.adjust = "hc1")$'Pr(>F)'[2] < 0.05
+
+# This is a good example of what can go wrong if we ignore heteroskedasticity: for the data set at hand the default method rejects the null hypothesis $β_1=1$ although it is true. When using the robust standard error formula the test does not reject the null.
+```
+
+

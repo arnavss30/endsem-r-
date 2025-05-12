@@ -1,0 +1,577 @@
+---
+title: "Data Tidying"
+author: "Dr. Balu Pawde"
+format:
+  html:
+    toc: true
+date: today
+editor: visual
+---
+
+------------------------------------------------------------------------
+
+> Note: This writeup introduces to Data Transformation[^1].
+
+[^1]: Book: 'R for Data Science' written by hadley Wickham et al. 2023.
+
+------------------------------------------------------------------------
+
+## [**Data Transformation**]{.underline}
+
+-   This topic introduces you to the key tools to transform data using `dplyr` package
+
+```{r, warning=FALSE, message=FALSE}
+#install.packages("tidyverse")
+#install.packages("nycflights13")
+library(tidyverse) 
+library(nycflights13) 
+View(flights) 
+#glimpse(flights)
+```
+
+-   The symbol `|>` is called the `pipe`, it takes the thing on its left and passes it along to the function on its right so that $x$ `|>` $f(y)$ is equivalent to $f(x, y)$
+
+## Altering data
+
+-   The functions in `R` work on 4 groups:
+    -   Rows
+    -   columns
+    -   groups\
+    -   tables
+-   the command `filter()` changes which rows are present without changing their order
+
+```{r}
+flights |> filter(dep_delay > 120)
+# The above command gives the data with rows containing the values of dep_delay > 120
+# In it `flights` is the data that is used by the function used after the `pipe`
+```
+
+-   We may also save the filtered data as follows:
+
+```{r}
+jan1 <- flights |> filter(month == 1 & day == 1)
+```
+
+-   the `arrange()` changes the order of the rows without changing the number of rows
+
+```{r}
+flights |> arrange(year, month, day, dep_time)
+```
+
+```{r}
+# Arrange in descending order 
+flights |> arrange(desc(dep_delay))
+```
+
+-   the function `distinct()` finds all the unique rows in a dataset, and delete duplicates by keeping all columns
+
+```{r}
+flights |> distinct(origin, dest, .keep_all = TRUE)
+```
+
+-   To just get count instead of deleting obs,
+
+```{r}
+flights |> count(origin, dest, sort = TRUE)
+```
+
+-   There are 4 IMP functions (verbs) that affect the columns without affecting rows:
+
+    -   `mutate()`
+    -   `select()`
+    -   `rename()`
+    -   `relocate()`
+
+-   The `mutate()` creates new columns that are derived from the existing columns.
+
+    -   we can use option before the symbol `=` is to place new variables to the left
+
+    ```{r}
+    flights |> mutate(gain = dep_delay-arr_delay, speed = distance/air_time*60)
+    ```
+
+-   the `select()` changes which columns are present, allows to select few variables. This is interesting function. read documentation by running `?select()` in consol.
+
+```{r}
+flights |> select(year:day) 
+#select columns b/w year & day
+```
+
+-   The function `rename()` changes the names of the columns, i.e. variables
+
+```{r}
+flights |> rename(tail_num = tailnum)
+```
+
+-   the `relocate()` changes the positions of the column to the front
+
+```{r}
+flights |> relocate(time_hour, air_time) 
+#And we can place before or after 
+flights |> relocate(year:dep_time, .after = time_hour) 
+flights |> relocate(starts_with("arr"), .before = dep_time)
+```
+
+-   The pipe (i.e. `|>`) emerges as powerful tool when combining multiple verbs
+
+```{r}
+flights |> filter(dest == "IAH") |> 
+  mutate(speed = distance/air_time*60) |> 
+  select(year:day, dep_time, carrier, flight, speed) |> 
+  arrange(desc(speed)) 
+```
+
+```{r}
+# In the absence of pipe above, the code is nested and longish as follows: 
+arrange(select( mutate( filter( flights, dest == "IAH" ), speed = distance/air_time*60), year:day, dep_time, carrier, flight, speed ), desc(speed))
+```
+
+## Grouping the data
+
+-   We can create interesting groups from data
+-   the group_by() function allows us to create groups of a variable based on values of that variable. This is essentially subsetting data based on the values of the variable.
+
+```{r}
+flights |> group_by(month)
+```
+
+-   IMP: grouping based operation is summarize(); especially the mean and count
+
+```{r}
+flights |> group_by(month) |> summarize(avg_delay = mean(dep_delay, na.rm = TRUE), n = n())
+```
+
+-   The `slice_` function is very useful in examining interesting rows
+
+```{r}
+flights |> slice_head(n = 1) 
+#slices the top row 
+```
+
+```{r}
+flights |> slice_tail(prop = 0.1) 
+#bottom 10% rows are sliced off
+```
+
+```{r}
+flights |> slice_min(day, n = 1) 
+#slice the row containing minimum value of the variable `day`
+```
+
+-   It is possible to group based on multiple columns
+
+```{r}
+daily <- flights |> group_by(year, month, day) 
+daily 
+```
+
+```{r}
+#The data can be ungrouped as well 
+daily |> ungroup()
+```
+
+-   We also have an option to group in the same operation
+
+```{r}
+flights |> summarize(delay = mean(dep_delay, na.rm = TRUE), n = n(), .by = c(origin, dest))
+# the .by option will group the data
+```
+
+------------------------------------------------------------------------
+
+## A Note on Workflow: Code Style
+
+```{r}
+# install.packages("styler") 
+# Install the abvoe package if not already installed
+library(tidyverse) 
+library(nycflights13)
+```
+
+-   the names of objects should only be in lowercase, word separated by a `_` (underscore).
+
+    -   For example
+
+    ```{r}
+    short_flights <- flights |> filter(air_time < 60)
+    ```
+
+-   Put spaces on either side of mathematical operators such as ( +, -, ==, \<, …) except for `^`. Put space around the assignment operator `<-` as well
+
+    -   For example, observe spaces: `z <- (a + b)^2 / d`
+
+-   It’s OK to add extra spaces if it improves alignment.
+
+```{r}
+flights |> mutate( speed = distance / air_time, dep_hour = dep_time %/% 100, dep_minute = dep_time %% 100 )
+```
+
+-   The pipe, i.e. `|>` should always have a space before it and should typically be the last thing on a line.
+
+```{r}
+flights |>
+filter(!is.na(arr_delay), !is.na(tailnum)) |> 
+  count(dest)
+```
+
+-   If the function you’re piping into has named arguments, like, `mutate()` or `summarize()`, put each argument on a new line.
+
+```{r}
+flights |>
+  group_by(tailnum) |> 
+  summarize( delay = mean(arr_delay, na.rm = TRUE), n = n() )
+```
+
+-   the `+` sign in ggplot operations should always be at the end of line
+
+```{r}
+#for example
+library(palmerpenguins)
+ggplot(
+  data = penguins,
+  mapping = aes(x = flipper_length_mm, y = body_mass_g, color = species)) +
+  geom_point()
+```
+
+## Data Tidying
+
+```{r}
+library(tidyverse)
+```
+
+-   The rules that make data tidy are as follows:
+    -   #1. Each variable is a column; each column is a variable.
+    -   #2. Each observation is a row; each row is an observation.
+    -   #3. Each value is a cell; each cell is a single value.
+-   The billboard dataset records the billboard rank of songs.
+    -   The variables `week1-week76` are observations but are in columns making them variables. - This can be tidyied by using function `pivot_longer()` and `pivot_wider()`
+-   Pivoting is useful to change the columns of the data - example below -see outcomes
+-   We can pivot in two ways: `pivot_longer()` and `pivot_wider()`.
+
+```{r}
+View(billboard)
+billboardalt <- billboard |> pivot_longer( cols = starts_with("wk"), names_to = "week", values_to = "rank" )
+# This will send the column names as observation in new variable 
+#the values contained in raw columns is sent to new variable called rank, where we have chosen the name rank for the new variable
+View(billboardalt)
+```
+
+-   It is useful to have variables in numerical values.
+-   The newly created week variable can be turned numerical by getting rid of the string characters:
+
+```{r}
+billboard_longer <- billboard |> pivot_longer( cols = starts_with("wk"), names_to = "week", values_to = "rank", values_drop_na = TRUE ) |> 
+  mutate( week = parse_number(week) )
+  #This parses the numbers only dropping string characters )
+```
+
+```{r}
+#creating a tibble example: tribble() creates row-wise tibble
+df <- tribble( ~id, ~bp1, ~bp2, "A", 100, 120, "B", 140, 115, "C", 120, 125 ) 
+```
+
+```{r}
+#Modifying the tibble 
+df |> pivot_longer( cols = bp1:bp2, names_to = "measurement", values_to = "value" )
+#The above will send the column names as observation in new variable  
+#The earlier values from raw data are sent to newly created variable
+```
+
+-   Multiple variables:
+    -   In the who2 dataset, the 3 peices of information is given in one column: method of diagnosis, gender and age.
+    -   We can separate this information as follows:
+
+```{r}
+View(who2)
+who2 |> pivot_longer( cols = !(country:year), names_to = c("diagnosis", "gender", "age"), names_sep = "_", values_to = "count")
+
+#Above Unselecting irrelevant variables 
+#selecting variables to be altered  
+#tell R that the variable names are separated by "_" this symbol and contain information 
+#The variables contain information on three: diagnosis, gender and age  
+#sending values to a newly created variable count
+```
+
+-   Splitting the column names that contain value household
+
+```{r}
+View(household)
+household |> pivot_longer( cols = !family, names_to = c(".value", "child"), names_sep = "_", values_drop_na = TRUE )
+#unselecting the variable not required  
+#Make variables/columns from the name of raw variable 
+#& create new variable to contain values 
+```
+
+-   In widening the data the function `pivot_wider()` helps in reducing rows when one observation is spread across multiple rows.
+
+-   The `cms_patient_experience` data contains info on 5 variables, where `id` and `name` is reapeated.
+
+-   We can see the complete set of values for `measure_cd` and `measure_title` by using `distinct()`:
+
+```{r}
+cms_patient_experience 
+cms_patient_experience |> distinct(measure_cd, measure_title)
+```
+
+-   the `pivot_wider()` has a different interface than `pivot_longer()`.
+-   Below we create new columns to incorporate unique values but its not complete yet
+
+```{r}
+cms_patient_experience |> pivot_wider( names_from = measure_cd, values_from = prf_rate )
+```
+
+-   We tell R unique identification with variable
+
+```{r}
+cms_patient_experience |> pivot_wider( id_cols = starts_with("org"), names_from = measure_cd, values_from = prf_rate ) 
+#This gives us the right output.
+```
+
+## Data Import
+
+-   We will learn how to deal with datasets that are not part of packages
+
+```{r}
+library(tidyverse)
+```
+
+-   Reading data from a file:
+    -   The cost common is `CSV` file in which the First is header row - columns delimited by commas.
+    -   For example, following is an example of CSV type data
+
+"Student ID,Full Name,favourite.food,mealPlan,AGE 1,Sunil Huffmann,Strawberry yoghurt,Lunch only,4 2,Barclay Lynn,French fries,Lunch only,5 3,Jayendra Lyne,N/A,Breakfast and lunch,7 4,Leon Rossini,Anchovies,Lunch only, 5,Chidiegwu Dunkel,Pizza,Breakfast and lunch,five 6,Güvenç Attila,Ice cream,Lunch only,6 - The associated table for the above data can be found at <https://r4ds.hadley.nz/data-import#tbl-students-table>
+
+-   To read csv file in r
+
+```{r}
+#students <- read_csv("data/students.csv") 
+#Path and name of the dataset if the dataset is stored locally. It will only work if the data set exists locally on the path.
+```
+
+```{r}
+# Following takes data from Posit site
+students <- read_csv("https://pos.it/r4ds-students-csv")
+# The above will work only when you are connected to internet
+```
+
+-   Once you have access to data, make it useful
+
+```{r}
+students 
+# In the data the N/A is inputted as string in favfood and therefore, R could not read it as missing data but it read as input instead. 
+#This can be remedied as follows
+students <- read_csv("https://pos.it/r4ds-students-csv", na = c("N/A", "")) 
+#Now r has read it as missing - NA
+```
+
+```{r}
+# Observe that the variable names are not according R rules. 
+# Change them with either of the two methods: 
+students |> rename( student_id = `Student ID`, full_name = `Full Name` ) 
+```
+
+`{r{}} #OR alternatively students |> janitor::clean_names()  #:: extracts function from package`
+
+-   The types of variables need to be understood.
+
+    -   E.g. `meal_plan` is a categorical variable
+
+    ```{r}
+    students |> janitor::clean_names() |>
+      mutate(meal_plan = factor(meal_plan)) 
+    #read as a factor variable
+    ```
+
+```{r}
+# Need to fix two variables id and age. 
+students <- students |> janitor::clean_names() |> 
+  mutate( meal_plan = factor(meal_plan), age = parse_number(if_else(age == "five", "5", age))) 
+#Here we’re saying if age is the character string "five", make it "5", and if not leave it as age.
+```
+
+```{r}
+# read_csv() can read text strings that you’ve created and formatted like a CSV file: 
+# The first line is usually left for columns. 
+# You can leave more as well by using skip function 
+read_csv(
+  "The first line of metadata
+  The second line of metadata
+  x,y,z
+  1,2,3",
+  skip = 2 #to skip 2 rows
+)
+```
+
+-   if there are no column names, you have to tell that to R
+
+```{r}
+read_csv(
+  "1,2,3
+  4,5,6",
+  col_names = FALSE #R will automatically assign generic variable names
+)
+```
+
+```{r}
+# Or you can specify the column names explicitly as well 
+read_csv(
+  "1,2,3
+  4,5,6",
+  col_names = c("x", "y", "z")
+)
+```
+
+Note: Read the documentation for `read_csv()`
+
+-   Other file types
+
+    -   the function `read_csv2()` reads semicolon-separated files.
+        -   These use ';' instead of ',' to separate fields
+    -   the `read_tsv()` reads tab-delimited files. the `read_delim()` reads files with any delimiter, attempting to automatically guess the delimiter if you don’t specify it.
+    -   the `read_fwf()` reads fixed-width files. You can specify fields by their widths using `fwf_widths()` or by their positions with `fwf_positions()`.
+    -   the `read_table()` reads a common variation of fixed-width files where columns are separated by white space.
+    -   the `read_log()` reads Apache-style log files - html type
+
+-   Controlling column types
+
+    -   The `CSV` files don't contain information about types of variables. The `readr` guesses it.
+    -   However, if the guess fails, we need to correct it
+    -   Example
+
+    ```{r}
+    simple_csv <- "
+      x
+      10
+      .
+      20
+      30"
+
+    read_csv(simple_csv)
+    read_csv(simple_csv) 
+    #due to . the column is read as chr.
+    ```
+
+```{r}
+#You can tell r to read it as numerical 
+df <- read_csv( simple_csv, col_types = list(x = col_double()) )
+df 
+problems(df) 
+# The above tells us that there was a problem in row 3, col 1 where readr expected a double but got a .
+# That suggests this dataset uses . for missing values.
+```
+
+```{r}
+# So then in the above case, we set na = ".", the automatic guessing succeeds"
+read_csv(simple_csv, na = ".")
+# readr provides a total of nine column types for you to use 
+```
+
+-   The `col_logical()` and `col_double()` read logicals and real numbers.
+
+-   The `col_integer()` reads integers.
+
+-   `col_character()` reads strings.
+
+-   `col_factor()`, `col_date()`, and `col_datetime()` create factors, dates, and date-times respectively
+
+-   `col_number()` is a permissive numeric parser that will ignore non-numeric components, and is particularly useful for currencies.
+
+-   `col_skip()` skips a column so it’s not included in the result, which can be useful for speeding up reading the data if you have a large CSV file
+
+-   We cam override the default column by switching from `list()` to `cols()` and specifying .default
+
+```{r}
+another_csv <- "
+x,y,z
+1,2,3"
+
+read_csv(
+  another_csv, 
+  col_types = cols(.default = col_character()) #reads all columns as characters
+)
+# reads all columns as characters
+
+# cols_only() will read in only the columns you specify 
+read_csv( another_csv, col_types = cols_only(x = col_character()) )
+```
+
+-   Reading data from multiple files:
+
+    -   Data might be contained in two separate files.
+    -   You can stack the files one over other:
+
+    ```{r}
+    sales_files <- c( "https://pos.it/r4ds-01-sales", "https://pos.it/r4ds-02-sales", "https://pos.it/r4ds-03-sales" )
+
+    read_csv(sales_files, id = "file")
+    # Above: The id argument adds a new column called file to the resulting data frame that identifies the file the data come from.
+    # In case of many files to read in, it can get cumbersome to write out their names as a list. Instead, you can use the base list.files() function to find the files for you by matching a pattern in the file names.
+    ```
+
+```{r}
+sales_one <- "https://pos.it/r4ds-01-sales" 
+sales_2 <- "https://pos.it/r4ds-02-sales" 
+sales_3 <- "https://pos.it/r4ds-03-sales"
+
+sales_files <- list.files("data", pattern = "sales\\.csv$", full.names = TRUE)
+# the symbol \\ is escape instruction - escape anything in between while matching
+# the symbol $ instructs the end of the string 
+sales_files
+```
+
+-   Writing to a file:
+    -   `readr` also comes with two useful functions for writing data back to disk:
+        -   the `write_csv()` and the `write_tsv()`.
+        -   These require two arguements: x (data frame to save) and file (location to save)
+
+```{r}
+write_csv(students, "students.csv")
+
+# When you save interim data in csv and read it back, the variable types are lost. 
+# This makes CSVs a little unreliable - you need to recreate the column specification every time.
+
+# The remedy to above is using the write_rds() and read_rds() as they are uniform wrappers 
+write_rds(students, "students.rds") 
+#R data serialization 
+read_rds("students.rds")
+#You now are able reload exact same object that you stored.
+```
+
+-   The `arrow` package allows you to read and write parquet files,
+
+    -   It is a fast binary file format that can be shared across programming languages.
+    -   parquet files store data in a way that records the type of columns
+
+    ```{r}
+    library(arrow) 
+    write_parquet(students, "students.parquet") 
+    ```
+
+-   We can convert a dataset into parquet format
+
+```{r}
+read_parquet("students.parquet") 
+#Above: Parquet tends to be much faster than RDS and is usable outside of R
+```
+
+-   Data Entry:
+
+    -   We can assemble a tibble by hand by data entry in script
+
+        -   Example:
+
+        ```{r}
+        tibble( x = c(1, 2, 5), y = c("h", "m", "g"), z = c(0.08, 0.83, 0.60) )
+        ```
+
+-   You can also enter the data columnwise using tribble (transposed tibble)
+
+    -   In tribble, column headings start with \~ and entries are separated by commas."
+
+    ```{r}
+    tribble( ~x, ~y, ~z, 1, "h", 0.08, 2, "m", 0.83, 5, "g", 0.60 )
+    ```
+
+------------------------------------------------------------------------
+
+References: 1. Book: 'R for Data Science' written by hadley Wickham et al. 2023.

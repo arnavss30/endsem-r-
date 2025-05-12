@@ -1,0 +1,1121 @@
+---
+title: "3. ggplot & visualization"
+author: "Dr. Balu Pawde"
+format:
+  html:
+    toc: true
+date: today
+editor: visual
+---
+
+------------------------------------------------------------------------
+
+> Note: This writeup introduces to `ggplot` & visualization[^1].
+
+[^1]: Book: 'R for Data Science' written by hadley Wickham et al. 2023.
+
+------------------------------------------------------------------------
+
+# Visualization
+
+-   The data analysis progresses as follows:
+-   Import ⟶ tidy ⟶ transform ⟶ wrangling ⟶ visualization ⟶ Models ⟶ communication
+-   `ggplot2` is one of the most elegant packages for data visualization
+
+------------------------------------------------------------------------
+
+## Useful packages
+
+-   The essential packages required for tidying the data and visualization are as follows:
+
+```{r}
+my_packages <- c("ggplot2", "tidyverse", "arrow", "babynames", "curl", "duckdb",                     "gapminder", "ggridges", "ggthemes", "hexbin",                           "janitor", "Lahman", "leaflet", "maps","nycflights13", "openxlsx",                   "palmerpenguins", "repurrrsive", "tidymodels", "writexl",                           "ggrepel", "usethis")
+```
+
+```{r}
+#lapply(my_packages, install.packages, character.only = TRUE)
+```
+
+```{r, results='hide', warning=FALSE, message=FALSE}
+lapply(my_packages, library, character.only = TRUE)
+```
+
+------------------------------------------------------------------------
+
+-   Let us work with a dataset `penguins` & try different visualizations
+
+```{r}
+view(penguins)
+#head(penguins)
+```
+
+-   Let us create a graph based on this data
+
+```{r}
+#create an empty graph/canvas
+ggplot(data = penguins)
+```
+
+```{r}
+# Mapping the variables in the above canvas
+ggplot(
+  data = penguins,
+  mapping = aes(x = flipper_length_mm, y = body_mass_g)
+) 
+```
+
+```{r}
+# Adding geometry: here we start visualizing the relationship
+ggplot(
+  data = penguins,
+  mapping = aes(x = flipper_length_mm, y = body_mass_g)
+) +
+  geom_point()
+```
+
+-   Mind the warning: Removed 2 rows with missing values
+
+```{r}
+# We can now seek additional insights: differing relationship by categories of population?
+ggplot(
+  data = penguins,
+  mapping = aes(x = flipper_length_mm, y = body_mass_g, color = species)
+) +
+  geom_point()
+```
+
+-   We can add smooth curve to the plot to display relationship
+
+```{r}
+ggplot(
+  data = penguins,
+  mapping = aes(x = flipper_length_mm, y = body_mass_g, color = species)
+) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+-   We want one single line and colored points only --\> local color and global line
+
+```{r}
+ggplot(
+  data = penguins,
+  mapping = aes(x = flipper_length_mm, y = body_mass_g)
+) +
+  geom_point(mapping = aes(color = species)) +
+  geom_smooth(method = "lm")
+```
+
+-   Use shapes rather than colors
+
+```{r}
+ggplot(
+  data = penguins,
+  mapping = aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(mapping = aes(color = species, shape = species)) +
+  geom_smooth(method = "lm")
+```
+
+-   Adding/modifying labels
+
+```{r}
+ggplot(
+  data = penguins,
+  mapping = aes(x = flipper_length_mm, y = body_mass_g)
+) +
+  geom_point(aes(color = species, shape = species)) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Body mass and flipper length",
+    subtitle = "Dimensions for Adelie, Chinstrap, and Gentoo Penguins",
+    x = "Flipper length (mm)", y = "Body mass (g)",
+    color = "Species", shape = "Species"
+  ) +
+  scale_color_colorblind()
+```
+
+18/02/2025
+
+## Visualizing Distributions
+
+-   The visualization process depends on the type of the variable
+
+#### Categorical variables
+
+-   For categorical variables, use bar charts
+
+```{r}
+ggplot(penguins, aes(x = species)) + 
+  geom_bar()
+```
+
+-   The graph with decreasing frequencies can be achieved by treating variables as factors
+
+```{r}
+ggplot(penguins, aes(x = fct_infreq(species))) +
+  geom_bar()
+```
+
+#### Numerical variables
+
+-   For numerical variables with continuous or discrete values we can use histogram
+
+```{r}
+ggplot(penguins, aes(x = body_mass_g)) +
+  geom_histogram(binwidth = 200) 
+#binwidth is in units of x-var, has to be chosen carefully
+```
+
+#### Continuous variable
+
+-   We can use density plot for continuous variable to understand distribution
+
+```{r}
+ggplot(penguins, aes(x = body_mass_g)) +
+  geom_density()
+```
+
+## Visualizing Relationships - Two variables
+
+#### Continuous & categorical variables
+
+-   To examine relationship between continuous var and categorical var use Boxplot
+
+```{r}
+ggplot(penguins, aes(x = species, y = body_mass_g)) +
+  geom_boxplot()  
+#The horizontal line in the box is median. 
+#There are 3 horizontal lines in a box, each pertaining to 25pct, showing spread of distribution - symmetric or skewed. 
+#The outliers (lying out of 1.5 times the IQR) are plotted outside. 
+#The line outside the box extends till the farthest non-outlier point.
+```
+
+-   We can also create density plots for each species
+
+```{r}
+ggplot(penguins, aes(x = body_mass_g, color = species)) +
+  geom_density(linewidth = 0.75)
+```
+
+-   We can add fills and transparency
+
+```{r}
+ggplot(penguins, aes(x = body_mass_g, color = species, fill = species)) +
+  geom_density(alpha = 0.5)
+```
+
+#### Association between 2 categorical variables - stacked bar plots
+
+```{r}
+ggplot(penguins, aes(x = island, fill = species)) +
+  geom_bar()
+```
+
+-   The above graph with percentage balance looks like follows:
+
+```{r}
+ggplot(penguins, aes(x = island, fill = species)) +
+  geom_bar(position = "fill")
+```
+
+#### Association between 2 numerical variabels, use Scatterplot,
+
+```{r}
+ggplot(penguins, aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point()
+```
+
+1 dimensional, one variable only 1. If the variable is categorical, then use bar graph 2. If the variable is numerical then use density plot
+
+2 dimensional, two variables 1. categorical vs categorical - use stacked bar 2. categorical vs continuous - boxplot, density plots for categories 3. continuous vs continuous - scatter
+
+#### Association between three or more variables, use additional aesthetics
+
+```{r}
+ggplot(penguins, aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(aes(color = species, shape = island))
+```
+
+#### For more variables, use facets, i.e. subset plots.
+
+```{r}
+ggplot(penguins, aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(aes(color = species, shape = species)) +
+  facet_wrap(~island)
+```
+
+#### Save the generated plot using ggsave
+
+```{r}
+ggplot(penguins, aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point()
+
+
+ggsave(filename = "penguin-plot.png")
+```
+
+------------------------------------------------------------------------
+
+22/02/2025
+
+# Layers
+
+## Introduction
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy, color = class)) +
+  geom_point()
+```
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy, shape = class)) +
+  geom_point()
+"Warnings about shape: 1. Only 6 palettes available and hence 7th not plot & 
+                        2. missing values not plot"
+```
+
+-   In such a difficulty, we can try working with size instead of color and shape
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy, size = class)) +
+  geom_point()
+
+"Warnings about size: 1. size not advised"
+```
+
+These warnings appear because Mapping an unordered discrete (categorical) variable (class) to an ordered aesthetic (size or alpha) is generally not a good idea"
+
+-   You can learn about aesthetics here: <https://ggplot2.tidyverse.org/articles/ggplot2-specs.html>
+
+## Geometric Objects
+
+-   We know that we can use different geometric objects to plot the data
+
+-   E.g. geom_point and geom_smooth
+
+-   You can alter the linetype in the graph
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy, shape = drv)) + 
+  geom_smooth()
+```
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy, linetype = drv)) + 
+  geom_smooth()
+```
+
+-   We can overlay the lines on the raw data
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy, color = drv)) + 
+  geom_point() +
+  geom_smooth(aes(linetype = drv)) # two geoms in one graph
+```
+
+-   This can alternatively be done as individual sets
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_smooth()
+```
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_smooth(aes(group = drv))
+```
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_smooth(aes(color = drv), show.legend = FALSE)
+```
+
+-   Display different aesthetics in different layers -
+-   Place mappings in a geom function to treat them as local mappings //
+-   for the layer & overwrite the global mappings for that layer only.
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) + 
+  geom_point(aes(color = class)) + #local mapping of color
+  geom_smooth() #global mapping for the layer
+```
+
+-   The same idea can be used to specify different data for each layer i.e. you can use different sets of data in one plot
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) + #uses mpg data
+  geom_point() + 
+  geom_point(
+    data = mpg |> filter(class == "2seater"), #subsets the mpg data
+    color = "red"
+  ) +
+  geom_point(
+    data = mpg |> filter(class == "2seater"), 
+    shape = "circle open", size = 3, color = "red" #additional layer to highlight
+  )
+```
+
+-   "Geoms transform the look of your plot by changing its geom, and different geoms can reveal different features of your data.
+
+-   For example, the histogram and density plot below reveal that distribution of highway mileage is bimodal and right skewed while the boxplot reveals two potential outliers."
+
+```{r}
+ggplot(mpg, aes(x = hwy)) +
+  geom_histogram(binwidth = 2) #bimodal and right skewed distribution
+```
+
+```{r}
+ggplot(mpg, aes(x = hwy)) +
+  geom_density() #bimodal and right skewed distribution
+```
+
+```{r}
+ggplot(mpg, aes(x = hwy)) +
+  geom_boxplot()  #observe outliers
+```
+
+-   Additional geoms can be accessed here: <https://exts.ggplot2.tidyverse.org/gallery/> and <https://ggplot2.tidyverse.org/reference/>
+
+-   Example: visualizing the density of a numerical variable for different levels of a categorical variable.
+
+```{r}
+library(ggridges)
+
+ggplot(mpg, aes(x = hwy, y = drv, fill = drv, color = drv)) +
+  geom_density_ridges(alpha = 0.5, show.legend = FALSE)
+```
+
+### Facets
+
+-   `facet_wrap()` splits a plot into subplots that each display one subset of the data based on a categorical variable.
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) + 
+  geom_point() + 
+  facet_wrap(~cyl)
+```
+
+-   For combination of two categorical variables, switch from `facet_wrap()` to `facet_grid()`.
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) + 
+  geom_point() + 
+  facet_grid(drv ~ cyl)
+```
+
+-   The scales can be allowed to vary by using `free_y`
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) + 
+  geom_point() + 
+  facet_grid(drv ~ cyl, scales = "free_y")
+```
+
+### Statistical transformations
+
+-   We can change the stat of a geom.
+
+```{r}
+diamonds |>
+  count(cut) |>
+  ggplot(aes(x = cut, y = n)) +
+  geom_bar(stat = "identity")
+"Above, instead of default stat=count we have replaced it by identity"
+```
+
+-   We can use proportions
+
+```{r}
+ggplot(diamonds, aes(x = cut, y = after_stat(prop), group = 1)) + 
+  geom_bar()
+```
+
+-   We can also draw attention by incorporating sts_summary
+
+```{r}
+ggplot(diamonds) + 
+  stat_summary(
+    aes(x = cut, y = depth),
+    fun.min = min,
+    fun.max = max,
+    fun = median
+  )  
+"Above you can use multiple stats. see ?stat_bin"
+```
+
+## Position Adjustments
+
+-   We can color bar chart using color aesthetic, or fill aesthetic
+
+```{r}
+ggplot(mpg, aes(x = drv, color = drv)) + 
+  geom_bar()
+```
+
+```{r}
+ggplot(mpg, aes(x = drv, fill = drv)) + 
+  geom_bar()
+```
+
+-   If you map the fill aesthetic to another variable, like class: the bars are automatically stacked. Each colored rectangle represents a combination of drv and class.
+
+```{r}
+ggplot(mpg, aes(x = drv, fill = class)) + 
+  geom_bar()
+```
+
+-   `position = "dodge"` places overlapping objects directly beside one another.
+
+```{r}
+ggplot(mpg, aes(x = drv, fill = class)) + 
+  geom_bar(position = "dodge")
+```
+
+-   In scatterplots, the points are sometimes overplotted/overlapped. We can remedy that using `jitter`
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) + 
+  geom_point(position = "jitter") #spreads the points out 
+```
+
+------------------------------------------------------------------------
+
+# Exploratory data analysis
+
+## Introduction
+
+-   Exploratory Data Analysis (EDA) is an interative cycle.
+    -   Generate questions --\> search for answers --\> refine your question
+-   The tools of EDA: visualization, transformation, and modelling
+
+```{r}
+library(tidyverse)
+```
+
+### Questions
+
+-   Your goal during EDA is to develop an understanding of your data - use questions to guide
+-   Ask lots of questions. And definitely ask two:
+    -   What type of variation occurs within my variables?
+    -   What type of covariation occurs between my variables?
+-   Variation
+    -   change from measurement to measurement
+    -   Measurements can vary across
+        -   different instances (sample)
+        -   different subjects (unit of analysis)
+        -   Different time
+-   The best way to understand variation is visualization.
+    -   Example: Diamond dataset - exploration with histogram
+
+```{r}
+ggplot(diamonds, aes(x = carat)) +
+  geom_histogram(binwidth = 0.5)
+# We can see variation in variable carat
+```
+
+-   The further task is to ask questions based on your curiosity and skepticism
+    -   Look for common and rare values - anything unexpected?
+    -   Unusual patterns? Can we explain?
+    -   Example: Distribution of carat for smaller diamonds
+
+```{r}
+smaller <- diamonds |> 
+  filter(carat < 3)
+
+ggplot(smaller, aes(x = carat)) +
+  geom_histogram(binwidth = 0.01)   
+# Above: It can be seen that more diamonds are at the common fractions and whole carats. There are more diamonds slightly to right of each peak than slightly to left of each peak.
+```
+
+-   Visualizations can also reveal clusters & you might answer
+
+    -   How are the observations within each subgroup similar to each other?
+    -   How are the observations in separate clusters different from each other?
+    -   How can you explain or describe the clusters?
+    -   Why might the appearance of clusters be misleading?
+
+-   Outliers are observations that are unusual
+
+-   In large datasets, outliers may not be visible.
+
+    -   For example
+
+    ```{r}
+    ggplot(diamonds, aes(x = y)) + 
+      geom_histogram(binwidth = 0.5)
+    ```
+
+-   To make it easy to see the unusual values, we need to zoom to small values of the y-axis with coord_cartesian()
+
+```{r}
+ggplot(diamonds, aes(x = y)) + 
+  geom_histogram(binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 50))
+# In the above, we see 3 outliers, 0, 30 & 60.
+```
+
+-   `coord_cartesian()` also has an `xlim()` argument for when you need to zoom into x-axis.
+
+-   We can pluck the outliers using dplyr library
+
+```{r}
+unusual <- diamonds |> 
+  filter(y < 3 | y > 20) |> 
+  select(price, x, y, z) |>
+  arrange(y)
+#Notice the y takes some values 0, which is impossible - its width - we found missing values with EDA!
+```
+
+-   IMP: It’s good practice to repeat your analysis with and without the outliers.
+    -   If outliers have minimal effect and you don't know the source of outliers, you can remove them and go ahead.
+    -   If outliers have a substantial effect on your results, you shouldn’t drop them without justification.
+-   Unusual Values
+    -   In case of presence of unusual values, you have two options:
+        -   Drop the entire row with the strange values
+        -   Replace the unusual values with missing values - recommended
+-   Option 1: Drop the entire row with the strange values
+
+```{r}
+diamonds2 <- diamonds |> 
+  filter(between(y, 3, 20))
+# This is not preferred - one invalid value doesn’t imply that other values for that observation are also invalid. Moreover, you may lose lot of data on other variables
+```
+
+-   Option 2: Replace the unusual values with missing values - recommended
+
+```{r}
+diamonds2 <- diamonds |> 
+  mutate(y = if_else(y < 3 | y > 20, NA, y))
+# And then we can plot, NA data will be removed
+ggplot(diamonds2, aes(x = x, y = y)) + 
+  geom_point()
+```
+
+### Covariation
+
+-   Behaviour between two variables - vary together - use visualization
+-   Example: how does price of diamond vary with its quality (measured by cut)
+
+```{r}
+ggplot(diamonds, aes(x = price)) + 
+  geom_freqpoly(aes(color = cut), binwidth = 500, linewidth = 0.75)
+```
+
+-   For better visualization of the above, we can use density plots - density on y-axis
+
+```{r}
+ggplot(diamonds, aes(x = price, y = after_stat(density))) + 
+  geom_freqpoly(aes(color = cut), binwidth = 500, linewidth = 0.75)
+# The above graph shows that, Strangely, fair cut diamonds of low quality have high average price - counterintutive
+```
+
+-   The density plots are difficult to read & there is a lot going on in here.
+-   We can use side by side boxplots to examine further
+
+```{r}
+ggplot(diamonds, aes(x = cut, y = price)) +
+  geom_boxplot()
+```
+
+-   Comparison is easier with the boxplots.
+    -   It turns out that better quality diamonds are cheaper!
+    -   For such informed comparison, reorder/factorize variable. Example - a messy order
+
+```{r}
+ggplot(mpg, aes(x = class, y = hwy)) +
+  geom_boxplot()
+```
+
+-   The above messy plot can be converted to neat trend comparison as
+
+```{r}
+ggplot(mpg, aes(x = fct_reorder(class, hwy, median), y = hwy)) +
+  geom_boxplot()
+```
+
+-   For long variable names, you can flip the plot (axis)
+
+```{r}
+ggplot(mpg, aes(x = hwy, y = fct_reorder(class, hwy, median))) +
+  geom_boxplot()
+```
+
+### Examining relationship between two categorical variables - mind order
+
+```{r}
+ggplot(diamonds, aes(x = cut, y = color)) +
+  geom_count()
+# The size of the circles shows how many observations occured at each value
+```
+
+-   Another approach for two categorical vars is to use dplyr:
+
+```{r}
+diamonds |> 
+  count(color, cut) |>  
+  ggplot(aes(x = color, y = cut)) +
+  geom_tile(aes(fill = n))
+```
+
+### For two numerical variables, we used scatterplot
+
+```{r}
+ggplot(smaller, aes(x = carat, y = price)) +
+  geom_point() #shows positive and exponential relationship
+```
+
+```{r}
+# With larger datasets, the points overplot, difficult to identify differences. This can be remedied by using alpha
+ggplot(smaller, aes(x = carat, y = price)) + 
+  geom_point(alpha = 1 / 100)  
+```
+
+```{r}
+# Another solution is to use bin. geom_bin2d() and geom_hex() are useful
+ggplot(smaller, aes(x = carat, y = price)) +
+  geom_bin2d()
+```
+
+```{r}
+#install.packages("hexbin")
+ggplot(smaller, aes(x = carat, y = price)) +
+  geom_hex()  
+```
+
+```{r}
+#Yet, another option - bin one continuous variable so it acts like a categorical variable. Then use any of the earlier techniques for one categorical & other continuous var
+ggplot(smaller, aes(x = carat, y = price)) + 
+  geom_boxplot(aes(group = cut_width(carat, 0.1)))
+```
+
+## Patterns and models
+
+-   Pattern in data means systematic relationship. Then ask:
+    -   Could this pattern be due to coincidence?
+    -   How can you describe the relationship implied by the pattern?
+    -   How strong is the relationship implied by the pattern?
+    -   What other variables might affect the relationship?
+    -   Does the relationship change if you look at individual subgroups of the data?
+-   Variation in a variable creates uncertainty whereas covariation reduces it - prediction
+-   If there exists causal relationship (has to be justified), then you can control one variable with the other
+-   Example: We want to examine relation between cut and price in diamonds data but cut and carat and carat and price are tightly related. So, we want to remove relation between price and carat & explore subtleties that remain. To do that, predict price from carat, then compute residuals. The residuals give us view of the price of diamond after removing the effect of carat. Note: The variables are log-transformed & then residuals are exponentiated to get raw scale.
+
+```{r}
+library(tidymodels)
+
+diamonds <- diamonds |>
+  mutate(
+    log_price = log(price), #transforming the variabels into log
+    log_carat = log(carat)
+  )
+
+diamonds_fit <- linear_reg() |>
+  fit(log_price ~ log_carat, data = diamonds) #By default linear_reg() runs lm
+
+diamonds_aug <- augment(diamonds_fit, new_data = diamonds) |>
+  mutate(.resid = exp(.resid)) #The augment adds the objects from estimation into original dataframe
+
+ggplot(diamonds_aug, aes(x = carat, y = .resid)) + 
+  geom_point() #relation between carat and residual price
+```
+
+```{r}
+# Now we can check the relationship between cut and (residual) price
+
+ggplot(diamonds_aug, aes(x = cut, y = .resid)) + 
+  geom_boxplot()
+
+#Note: Once you’ve removed the strong relationship between carat and price, you can see what you expect in the relationship between cut and price: relative to their size, better quality diamonds are more expensive.
+```
+
+------------------------------------------------------------------------
+
+# Communication
+
+-   After your exploratory analysis, we would communicate your understanding with others.
+
+-   Others may not have context of your work and may not be invested, so put lot of efforts in communication
+
+-   The book is useful for visualizations: The Truthful Art, by Albert Cairo <https://knightcenter.utexas.edu/JC/courses/DATA0819/Eng/1TruthfulArtFIRSTPAGES.pdf>
+
+-   We would need following packages
+
+```{r}
+library(tidyverse)
+library(scales)
+library(ggrepel)
+library(patchwork)
+```
+
+### Labels
+
+-   add labels with the labs() function
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(aes(color = class)) +
+  geom_smooth(se = FALSE) +
+  labs(
+    x = "Engine displacement (L)",
+    y = "Highway fuel economy (mpg)",
+    color = "Car type",
+    title = "Fuel efficiency generally decreases with engine size",
+    subtitle = "Two seaters (sports cars) are an exception because of their light weight",
+    caption = "Data from fueleconomy.gov"
+  )
+
+# Ingredients in the plot:
+# Title: summarize the main finding
+# subtitle adds additional detail 
+# caption adds text at the bottom right of the plot, often used to describe the source of the data
+# replace short variable names with more detailed descriptions, and to include the units.
+```
+
+-   You can also use mathematical symbols in plot
+
+```{r}
+df <- tibble(
+  x = 1:10,
+  y = cumsum(x^2)
+)
+
+ggplot(df, aes(x, y)) +
+  geom_point() +
+  labs(
+    x = quote(x[i]),
+    y = quote(sum(x[i] ^ 2, i == 1, n))
+  )
+```
+
+```{r}
+# Annotations:
+# You can add textual labels to plot - to groups/observations using `geom_text()`
+# The process is as follows: 1. decide on label info, 2. Use info in plot
+# Creating info
+label_info <- mpg |> #generating object label_info
+  group_by(drv) |> #group data by drv
+  arrange(desc(displ)) |> #arrange according to descending
+  slice_head(n = 1) |> #take the top row
+  mutate(
+    drive_type = case_when(        #creating a drive type
+      drv == "f" ~ "front-wheel drive",
+      drv == "r" ~ "rear-wheel drive",
+      drv == "4" ~ "4-wheel drive"
+    )
+  ) |>
+  select(displ, hwy, drv, drive_type) #selecting only these variables
+
+label_info
+
+#> Now we use this info in plot
+
+ggplot(mpg, aes(x = displ, y = hwy, color = drv)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) + #until this all standard
+  geom_text( #begin text labels
+    data = label_info, #newly generated data
+    aes(x = displ, y = hwy, label = drive_type), #x & y axis should be same as above aes
+    fontface = "bold", size = 5, hjust = "right", vjust = "bottom"
+  ) + #additional specifications of style, hjust=horizontal justification
+  theme(legend.position = "none")
+```
+
+```{r}
+# A problem in the above graph is that the labels overlap.  This can be remedied using geom_label_repel() function
+
+ggplot(mpg, aes(x = displ, y = hwy, color = drv)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  geom_label_repel(
+    data = label_info, 
+    aes(x = displ, y = hwy, label = drive_type),
+    fontface = "bold", size = 5, nudge_y = 2
+  ) +
+  theme(legend.position = "none")
+```
+
+```{r}
+# We can also highlight observations (like labels)
+
+potential_outliers <- mpg |>
+  filter(hwy > 40 | (hwy > 20 & displ > 5))
+
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point() + #standard plot arguments
+  geom_text_repel(data = potential_outliers, aes(label = model)) + #new dataset for labels
+  geom_point(data = potential_outliers, color = "red") + #new dataset for color
+  geom_point(
+    data = potential_outliers, 
+    color = "red", size = 3, shape = "circle open" #second layer of hollow points to highlight labelled points
+  )
+```
+
+-   Some useful geoms
+
+    -   `geom_hline()` and `geom_vline()` to add reference lines.
+    -   `geom_rect()` to draw a rectangle around points of interest.
+    -   `geom_segment()` with the arrow argument to draw attention to a point with an arrow.
+
+-   We can also use annotate() function to annotate in plot
+
+    -   Example:
+
+    ```{r}
+    #first create text to add to plot
+    trend_text <- "Larger engine sizes tend to have lower fuel economy." |>
+      str_wrap(width = 30) #the text will wrap itself according to size of plot
+    trend_text
+
+    # Then add layers using geom
+
+    ggplot(mpg, aes(x = displ, y = hwy)) +
+      geom_point() + #standard arguments
+      annotate(
+        geom = "label", x = 3.5, y = 38, 
+        label = trend_text,   #label annotation
+        hjust = "left", color = "red"
+      ) +
+      annotate(
+        geom = "segment",
+        x = 3, y = 35, xend = 5, yend = 25, color = "red",
+        arrow = arrow(type = "closed")  #arrow annotation of a segment in plot
+      )
+
+    # Annotation is a powerful tool for communicating main takeaways and interesting features of your visualizations. 
+    ```
+
+-   Scales
+
+    -   We can adjust the scales of plot using ggplot2
+    -   ggplot2 automatically adds scales
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(aes(color = class))
+```
+
+-   axes and legends are called guides. axes used for axes and legend used for other.
+-   There are two primary arguments that affect the appearance of the ticks on the axes and the keys on the legend: breaks and labels.
+-   Breaks controls the position of the ticks, or the values associated with the keys. Labels controls the text label associated with each tick/key.
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy, color = drv)) +
+  geom_point() +
+  scale_y_continuous(breaks = seq(15, 40, by = 5)) 
+```
+
+```{r}
+# labels option can be used to alter the labels      
+ggplot(mpg, aes(x = displ, y = hwy, color = drv)) +
+  geom_point() +
+  scale_x_continuous(labels = NULL) +
+  scale_y_continuous(labels = NULL) +
+  scale_color_discrete(labels = c("4" = "4-wheel", "f" = "front", "r" = "rear"))
+```
+
+```{r}
+# The labels argument coupled with labelling functions from the scales package is also useful for formatting numbers as currency, percent, etc.
+library(scales)
+
+ggplot(diamonds, aes(x = price, y = cut)) +
+  geom_boxplot(alpha = 0.05) +
+  scale_x_continuous(labels = label_dollar())
+```
+
+```{r}
+# and
+
+ggplot(diamonds, aes(x = price, y = cut)) +
+  geom_boxplot(alpha = 0.05) +
+  scale_x_continuous(
+    labels = label_dollar(scale = 1/1000, suffix = "K"), 
+    breaks = seq(1000, 19000, by = 6000)
+  )
+```
+
+```{r}
+# Another handy label function is label_percent():
+
+ggplot(diamonds, aes(x = cut, fill = clarity)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(name = "Percentage", labels = label_percent())
+```
+
+```{r}
+# Another use of breaks is when you have relatively few data points and want to highlight exactly where the observations occur.
+
+presidential |>
+  mutate(id = 33 + row_number()) |>
+  ggplot(aes(x = start, y = id)) +
+  geom_point() +
+  geom_segment(aes(xend = end, yend = id)) +
+  scale_x_date(name = NULL, breaks = presidential$start, date_labels = "'%y")
+```
+
+```{r}
+# To control the display of individual legends, use guides() along with `guide_legend()` or `guide_colorbar()` 
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(aes(color = class)) +
+  geom_smooth(se = FALSE) +
+  theme(legend.position = "bottom") +
+  guides(color = guide_legend(nrow = 2, override.aes = list(size = 4)))
+```
+
+```{r}
+# Instead of just tweaking the details a little, you can instead replace the scale altogether. For example we can log transform
+
+ggplot(diamonds, aes(x = carat, y = price)) +
+  geom_bin2d()
+```
+
+```{r}
+# and
+
+ggplot(diamonds, aes(x = log10(carat), y = log10(price))) +
+  geom_bin2d()
+```
+
+```{r}
+# To avoid the problem of scale labels mentioning log, we can use following
+ggplot(diamonds, aes(x = carat, y = price)) +
+  geom_bin2d() + 
+  scale_x_log10() + 
+  scale_y_log10()
+```
+
+-   Note: Another scale that is frequently customized is color. The ColorBrewer scales are documented online at <https://colorbrewer2.org/> and made available in R via the RColorBrewer package
+
+## Zooming
+
+-   There are three ways to control the plot limits:
+    -   Adjusting what data are plotted.
+    -   Setting the limits in each scale.
+    -   Setting xlim and ylim in coord_cartesian().
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(aes(color = drv)) +
+  geom_smooth()
+```
+
+```{r}
+mpg |>
+  filter(displ >= 5 & displ <= 6 & hwy >= 10 & hwy <= 25) |>
+  ggplot(aes(x = displ, y = hwy)) +
+  geom_point(aes(color = drv)) +
+  geom_smooth() #this subsets the data 
+#We can see that reducing the limits is equivalent to subsetting data //
+#Therefore, to zoom in on a region of the plot, it’s generally best to //
+#use coord_cartesian().
+```
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(aes(color = drv)) +
+  geom_smooth() +
+  scale_x_continuous(limits = c(5, 6)) +
+  scale_y_continuous(limits = c(10, 25))
+```
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(aes(color = drv)) +
+  geom_smooth() +
+  coord_cartesian(xlim = c(5, 6), ylim = c(10, 25))
+```
+
+## Themes
+
+-   you can customize the non-data elements of your plot with a theme
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy)) +
+  geom_point(aes(color = class)) +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+```
+
+-   ggplot2 includes the eight themes shown in Figure 11.2 (of Wickham's R4DS)
+    -   with `theme_gray()` as the default.
+    -   Many more are included in add-on packages like ggthemes <https://jrnold.github.io/ggthemes>
+
+## Layout
+
+-   So far we talked about how to create and modify a single plot.
+-   What if you have multiple plots you want to lay out in a certain way?
+-   The patchwork package allows you to combine separate plots into the same graphic.
+    -   To place two plots next to each other, you can simply add them to each other.
+    -   Note that you first need to create the plots and save them as objects
+
+```{r}
+library(patchwork)    
+p1 <- ggplot(mpg, aes(x = displ, y = hwy)) + 
+  geom_point() + 
+  labs(title = "Plot 1")
+
+p2 <- ggplot(mpg, aes(x = drv, y = hwy)) + 
+  geom_boxplot() + 
+  labs(title = "Plot 2")
+
+p1 + p2
+```
+
+-   You can also create complex plot layouts with patchwork.
+
+```{r}
+# In the following, `|` places the `p1` and `p3` next to each other and `/` moves `p2` to the next line.
+p3 <- ggplot(mpg, aes(x = cty, y = hwy)) + 
+  geom_point() + 
+  labs(title = "Plot 3")
+(p1 | p3) / p2      
+```
+
+```{r}
+# Additionally, patchwork allows you to collect legends from multiple plots into one common legend, customize the placement of the legend as well as dimensions of the plots, and add a common title, subtitle, caption, etc. to your plots. Below we create 5 plots. We have turned off the legends on  the box plots and the scatterplot and collected the legends for the density plots at the top of the plot with & theme(legend.position = "top").       
+
+p1 <- ggplot(mpg, aes(x = drv, y = cty, color = drv)) + 
+  geom_boxplot(show.legend = FALSE) + 
+  labs(title = "Plot 1") #generates plot 1
+
+p2 <- ggplot(mpg, aes(x = drv, y = hwy, color = drv)) + 
+  geom_boxplot(show.legend = FALSE) + 
+  labs(title = "Plot 2") #generates plot 2
+
+p3 <- ggplot(mpg, aes(x = cty, color = drv, fill = drv)) + 
+  geom_density(alpha = 0.5) + 
+  labs(title = "Plot 3") #generates plot 3
+
+p4 <- ggplot(mpg, aes(x = hwy, color = drv, fill = drv)) + 
+  geom_density(alpha = 0.5) + 
+  labs(title = "Plot 4") #generates plot 5
+
+p5 <- ggplot(mpg, aes(x = cty, y = hwy, color = drv)) + 
+  geom_point(show.legend = FALSE) + 
+  facet_wrap(~drv) +
+  labs(title = "Plot 5") #generates plot 5
+
+(guide_area() / (p1 + p2) / (p3 + p4) / p5) + #All plots in one layout
+  plot_annotation(
+    title = "City and highway mileage for cars with different drive trains",
+    caption = "Source: https://fueleconomy.gov."
+  ) +
+  plot_layout(
+    guides = "collect",
+    heights = c(1, 3, 2, 4)
+  ) &
+  theme(legend.position = "top")
+```
+
+-   Note: The guides on the package website: <https://patchwork.data-imaginist.com>
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+# References
+
+1.  R for Data Science' written by hadley Wickham et al. 2023

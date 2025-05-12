@@ -1,0 +1,473 @@
+---
+title: "Multiple Regression"
+author: "Dr. Balu Pawde"
+format:
+  html:
+    toc: true
+date: today
+editor: visual
+---
+
+------------------------------------------------------------------------
+
+> Note: This writeup introduces to the concept of hypothesis testing, CIs in SLRM[^1].
+
+[^1]: Book: 'Introduction to Econometrics with R' written by Christoph Hanck, Martin Arnold, Alexander Gerber, and Martin Schmelzer, 2024
+
+------------------------------------------------------------------------
+
+```{r, warning=FALSE, message=FALSE}
+# required libraries
+library(AER)
+library(scales)
+library(jtools)
+library(lme4)
+library(huxtable)
+library(officer)
+library(flextable)
+```
+
+# OVB and MLRM
+
+-   We think about multiple explanatory variables
+
+-   Issues of multicollinearity and ommitted variable bias
+
+-   Ommitted Variable Bias:
+
+    -   What about factors that affect the $y$
+    -   The exclusion of relevant explanatory factors from the model induces estimation bias
+        -   The OVB arises if independent variable is correlated with the ommitted variable
+        -   And the omitted variable is a determinant of dependent variable
+    -   The OVB leads to violation of $E(u_i | X_i ) = 0$ due to the bias: $$\hat{\beta_1} ⟶ \beta_1 + \rho Xu \frac{\sigma_u}{\sigma_X}$$
+
+-   Example:
+
+-   Continuing with the `score` on `str` regression, let's check OVB
+
+-   Let the true DGP be $$Test_Score = \beta_0 + \beta_1*STR + \beta_2*PctEL$$ where `PctEL` is share of english learning students
+
+    -   the `STR` and `PctEL` are correlated, i.e $\rho_{STR, PctEL}≠0$
+
+```{r, warning=FALSE, message=FALSE}
+# load the AER package
+#library(AER)
+
+# load the data set
+data(CASchools)   
+
+# define variables
+CASchools$STR <- CASchools$students/CASchools$teachers       
+CASchools$score <- (CASchools$read + CASchools$math)/2
+
+# compute correlations
+cor(CASchools$english, CASchools$score)
+
+cor(CASchools$STR, CASchools$score)
+
+cor(CASchools$STR, CASchools$english)
+
+```
+
+-   If we run `score` on STR`without`english\`, it may be a cause of concern because the effect may be overestimated (in terms of absolute coefficient value)
+-   So, let's see what happens to the coefficient if we add `english` as an explanatory variable
+
+```{r}
+# estimate both regression models
+mod <- lm(score ~ STR, data = CASchools) 
+mult.mod <- lm(score ~ STR + english, data = CASchools)
+
+# print the results to the console
+mod
+
+mult.mod
+```
+
+------------------------------------------------------------------------
+
+# MLRM
+
+-   Extension of SLRM
+-   Mechanism remains the same, still use OLS
+    -   Minimize sum of squared deviations
+-   The estimated model
+
+```{r}
+summ(mod)
+summ(mult.mod)
+```
+
+-   We don't have a regression line, but a regression plane
+    -   Visualization impossible for higher dimensions
+
+------------------------------------------------------------------------
+
+## Measures of fit
+
+-   Common measures: `SER`, $R^2$`and`$Adjusted R^2$\`
+-   The `SER` (standard error of the regression) is given as $$SER = s_{\hat{u}}= \sqrt{s^2_{\hat{u}}}$$ where $s^2_{\hat{u}} = \frac{1}{n-k-1}SSR$
+-   The $R^2$\` in the MLRM is not reliable as it increases with additional regressor.
+-   The `$Adjusted R^2$` recognizes this and penalizes for that fact. The `$Adjusted R^2$` is a modified version of $R^2$\` where $$Adjusted R^2 = \overline{R^2} = 1 - \frac{n-1}{n-k-1}\frac{SSR}{SST}$$
+-   The model that we estimated gives these measures
+
+```{r}
+#summary(mult.mod)
+summ(mult.mod)
+```
+
+-   We can verify these measures by manual computation
+
+```{r}
+# define the components
+n <- nrow(CASchools)                            # number of observations (rows)
+k <- 2                                          # number of regressors
+
+y_mean <- mean(CASchools$score)                 # mean of avg. test-scores
+
+SSR <- sum(residuals(mult.mod)^2)               # sum of squared residuals
+TSS <- sum((CASchools$score - y_mean )^2)       # total sum of squares
+ESS <- sum((fitted(mult.mod) - y_mean)^2)       # explained sum of squares
+
+# compute the measures
+
+SER <- sqrt(1/(n-k-1) * SSR)                    # standard error of the regression
+Rsq <- 1 - (SSR / TSS)                          # R^2
+adj_Rsq <- 1 - (n-1)/(n-k-1) * SSR/TSS          # adj. R^2
+
+# print the measures to the console
+c("SER" = SER, "R2" = Rsq, "Adj.R2" = adj_Rsq)
+
+```
+
+-   Interpretation of the model
+    -   The measures of fit have improved after inclusion of additional regressor in this case
+-   It is a bad idea to improve `$Adjusted R^2$` by adding more and more regressors
+
+------------------------------------------------------------------------
+
+## OLS assumptions in MLRM
+
+-   There are some extensions to assumptions that we saw in SLRM
+-   The i.i.d. assumption holds, now for all the regressors and DepVar
+-   The $E(u_i|X_{1i}, X_{2i}...X_{ki}, Y_i)=0$
+-   Large outliers are unlikely
+-   No perfect multicollinearity
+
+### Multicollinearity
+
+-   Two or more regressors in a multiple regression model are strongly correlated.
+-   Perfectly correlated, perfect multicorrelinearity
+    -   The model cannot be estimated in the first place because we can't solve for Betas
+-   Example of perfect multicollinearity
+
+```{r}
+# define the fraction of English learners        
+CASchools$FracEL <- CASchools$english / 100
+
+# estimate the model
+mult.mod <- lm(score ~ STR + english + FracEL, data = CASchools) 
+
+# obtain a summary of the model
+summary(mult.mod)                                                 
+#summ(mult.mod)                                                 
+
+# Due to perfect multicollinearity, the FracEL was eliminated from the model and hence no results for it
+```
+
+-   Dummy variable and multicollinearity
+    -   Define a variable `NS` such that $NS=0$ if $STR < 12$ and $NS=1$ otherwise
+
+```{r}
+# if STR smaller 12, NS = 0, else NS = 1
+CASchools$NS <- ifelse(CASchools$STR < 12, 0, 1)
+
+# estimate the model
+mult.mod <- lm(score ~ computer + english + NS, data = CASchools)
+
+# obtain a model summary
+summary(mult.mod)                                                  
+#summ(mult.mod)                                                  
+
+```
+
+-   In the above estimation, since there is no observation with $STR<12$ & therefore $NS=1$ for all observations.
+    -   This induced perfect multicollinearity with the constant term & therefore excludes the explanatory variable from the model
+
+------------------------------------------------------------------------
+
+### Dummy Variable trap and Multicollinearity
+
+-   The "dummy variable trap" means falsely including [exhaustive dummies]{.underline} and a constant in a regression model.
+
+-   Happens when multiple dummy variables are used as regressors
+
+-   Example:
+
+    ![](images/clipboard-3935815396.png)
+
+-   These are mutually exclusive categories & therefore there will be vector of 1's across schools
+
+    -   This also induces perfect multicollinearity with the constant term
+
+```{r}
+# set seed for reproducibility
+set.seed(1)
+
+# generate artificial data on location
+CASchools$direction <- sample(c("West", "North", "South", "East"), 
+                              420, 
+                              replace = T)
+
+# estimate the model
+mult.mod <- lm(score ~ STR + english + direction, data = CASchools)
+
+# obtain a model summary
+summary(mult.mod)                                                 
+summ(mult.mod)                                                 
+
+```
+
+-   IMP: R solves the problem on its own by generating and including the dummies directionNorth, directionSouth and directionWest but omitting directionEast.
+    -   Omission of every other dummy instead would achieve the same.
+    -   The interpretation of dummies remains same a SLRM - in relative terms.
+-   Perfect multicollinearity can also arise from the [redundant regressors]{.underline}
+    -   This is the case when two variables are linear combinations of each other
+
+```{r}
+# Percentage of english speakers 
+CASchools$PctES <- 100 - CASchools$english
+
+# estimate the model
+mult.mod <- lm(score ~ STR + english + PctES, data = CASchools)
+
+# obtain a model summary
+summary(mult.mod)                                                 
+
+```
+
+------------------------------------------------------------------------
+
+### Imperfect Multicollinearity
+
+-   Relatively less of a problem
+-   However, it has implications for the variance of Betas as $$\sigma^2_\hat{\beta_{1}} = \frac{1}{n} ⟮\frac{1}{1-\rho^{2}_{X1, X2}}⟯ \frac{\sigma^2_\hat{u}}{\sigma^2_\hat{X_1}}$$
+- The above implies that
+  - If $\rho_{X1, X2}=0$, i.e. no correlation, including $X_2$ in the model has no influence on the variance of $\hat{\beta_1}$
+  - Stronger the correlation between $X_1$ and $X_2$ smaller is $1-\rho^{2}_{X1, X2}$ and therefore bigger is the variance of $\hat{\beta_1}$
+  - Generally, the imperfect multicollinearity inflactes the variance of coefficient estimators.
+  - There exists bias-variance tradeoff - empirically if you increase regressors, variance inflates, otherwise OBS chips in
+
+- Example:
+
+```{r}
+# load packages
+library(MASS)
+library(mvtnorm)
+
+# set number of observations
+n <- 50
+
+# initialize vectors of coefficients
+coefs1 <- cbind("hat_beta_1" = numeric(10000), "hat_beta_2" = numeric(10000))
+coefs2 <- coefs1
+
+# set seed
+set.seed(1)
+
+# loop sampling and estimation
+for (i in 1:10000) {
+  
+  # for cov(X_1,X_2) = 0.25
+  X <- rmvnorm(n, c(0, 0), sigma = cbind(c(10, 2.5), c(2.5, 10)))
+  u <- rnorm(n, sd = 5)
+  Y <- 5 + 2.5 * X[, 1] + 3 * X[, 2] + u
+  coefs1[i, ] <- lm(Y ~ X[, 1] + X[, 2])$coefficients[-1]
+  
+  # for cov(X_1,X_2) = 0.85
+  X <- rmvnorm(n, c(0, 0), sigma = cbind(c(10, 8.5), c(8.5, 10)))
+  Y <- 5 + 2.5 * X[, 1] + 3 * X[, 2] + u
+  coefs2[i, ] <- lm(Y ~ X[, 1] + X[, 2])$coefficients[-1]
+  
+}
+
+# obtain variance estimates
+diag(var(coefs1))
+
+diag(var(coefs2))
+
+```
+
+- The above example shows that if the correlation is high (0.85) vis-a-vis low (0.25) the variance is higher for the latter
+
+--------------------------------------------------------------------------------
+
+### Distribution of OLS Estimators in Multiple Regression
+
+- Similar to SLRM different samples will produce different values of the OLS estimators in the multiple regression model.
+- The individual estimators are normally distributed
+- We can see this with example
+
+```{r}
+# load packages
+#library(MASS)
+#library(mvtnorm)
+
+# set sample size
+n <- 50
+
+# initialize vector of coefficients
+coefs <- cbind("hat_beta_1" = numeric(10000), "hat_beta_2" = numeric(10000))
+#coefs
+
+# set seed for reproducibility
+set.seed(1)
+
+# loop sampling and estimation
+for (i in 1:10000) {
+  
+  X <- rmvnorm(n, c(50, 100), sigma = cbind(c(10, 2.5), c(2.5, 10)))
+  u <- rnorm(n, sd = 5)
+  Y <- 5 + 2.5 * X[, 1] + 3 * X[, 2] + u
+  coefs[i,] <- lm(Y ~ X[, 1] + X[, 2])$coefficients[-1]
+  
+}
+
+# compute density estimate
+kde <- kde2d(coefs[, 1], coefs[, 2])
+
+# plot density estimate
+persp(kde, 
+      theta = 310, 
+      phi = 30, 
+      xlab = "beta_1", 
+      ylab = "beta_2", 
+      zlab = "Est. Density",
+      main = "2D Kernel Density Estimate")
+```
+
+- From the plot above we can see that the density estimate has some similarity to a bivariate normal distribution
+
+--------------------------------------------------------------------------------
+
+# Hypothesis Tests and Confidence Intervals in MLRM
+
+```{r}
+library(AER)
+library(stargazer)
+```
+
+## Hypothesis Tests and Confidence Intervals for a Single Coefficient
+
+- $H_0: \beta_j =0$ against $H_0: \beta_j \neq 0$
+- The mechanism remains same as in SLRM
+  - Compute se of $\hat{\beta_j}$
+  - Compute the $t$-statistic $$t_{calc} = \frac{\hat{\beta_j}-\beta_j,0}{se(\hat{\beta_j})}$$
+  - Compute p-value $$p-value = 2 \Phi (-|t_{calc}|)$$
+  - Interpret/infer
+
+- Example:
+
+```{r}
+model <- lm(score ~ STR + english, data = CASchools)
+summ(model)
+coeftest(model, vcov. = vcovHC, type = "HC1")
+```
+  
+- Computing two-sided p-value
+
+```{r}
+# compute two-sided p-value
+2 * (1 - pt(abs(coeftest(model, vcov. = vcovHC, type = "HC1")[2, 3]),
+            df = model$df.residual))
+```
+
+
+## Confidence intervals
+
+- Similar to SLRM $$[\hat{\beta_j}-1.96*se(\hat{\beta_j}), \hat{\beta_j}+1.96*se(\hat{\beta_j})]$$
+
+```{r}
+model <- lm(score ~ STR + english, data = CASchools)
+confint(model, level = 0.95)
+
+#Obtain at 90% confidence level
+confint(model, level = 0.90)
+```
+
+
+## Joint Hypothesis Testing using the F-Statistic
+
+- Joint hypothesis puts restriction on multiple regression coefficients smultaneously
+- We use F-statistic for this $$F=\frac{\frac{SSR_{Restricted} - SSR_{Unrestricted}}{q}}{\frac{SSR_{Unrestricted}}{n-k-1}}$$
+- Examples:
+
+```{r}
+# estimate the multiple regression model
+model <- lm(score ~ STR + english + expenditure, data = CASchools)
+
+# execute the function on the model object and provide both linear restrictions to be tested as strings
+linearHypothesis(model, c("STR=0", "expenditure=0"))
+
+```
+
+- The above reveals that the F-statistic for this joint hypothesis test is about $8.01$ and the corresponding $p-value$ is  
+$0.0004$. Thus, we can reject the null hypothesis that both coefficients are zero at any level of significance commonly used in practice.
+
+
+- A heteroskedasticity-robust version of this F-test (which leads to the same conclusion) can be conducted as follows:
+```{r}
+# heteroskedasticity-robust F-test
+linearHypothesis(model, c("STR=0", "expenditure=0"), white.adjust = "hc1")
+```
+
+- The standard output of a model summary also reports an F-statistic, for which the null is that all coefficients except the constant are zero.
+  - This is called overall regression F-statistic
+  - Compare the following
+
+```{r}
+# estimate the multiple regression model
+model <- lm(score ~ STR + english + expenditure, data = CASchools)
+summ(model)
+
+linearHypothesis(model, c("STR=0", "expenditure=0", "english=0"))
+```
+
+
+--------------------------------------------------------------------------------
+
+# Model Specification for MLRM
+
+- How do we include regressors in a model
+- The $R^2$ and $\overline{R^2}$ tell us whether the regressors are good at explaining the variation in Y
+  - We decide the independent variables to reduce the OVB and to achieve a better fit
+  
+Note: We can show our regression results in a aesthetic manner as follows:
+
+```{r, warning=FALSE, message=FALSE, results='hide'}
+# load the stargazer library
+library(stargazer)
+
+# estimate different model specifications
+spec1 <- lm(score ~ STR, data = CASchools)
+spec2 <- lm(score ~ STR + english, data = CASchools)
+spec3 <- lm(score ~ STR + english + lunch, data = CASchools)
+spec4 <- lm(score ~ STR + english + calworks, data = CASchools)
+spec5 <- lm(score ~ STR + english + lunch + calworks, data = CASchools)
+
+# gather robust standard errors in a list
+rob_se <- list(sqrt(diag(vcovHC(spec1, type = "HC1"))),
+               sqrt(diag(vcovHC(spec2, type = "HC1"))),
+               sqrt(diag(vcovHC(spec3, type = "HC1"))),
+               sqrt(diag(vcovHC(spec4, type = "HC1"))),
+               sqrt(diag(vcovHC(spec5, type = "HC1"))))
+
+# generate a .txt table using stargazer
+stargazer(spec1, spec2, spec3, spec4, spec5,
+          se = rob_se,
+          digits = 3,
+          header = F,
+          out = "table.txt",
+          column.labels = c("(I)", "(II)", "(III)", "(IV)", "(V)"))
+```
+
+--------------------------------------------------------------------------------
